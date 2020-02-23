@@ -572,4 +572,3 @@ E0002E31 @offset_Expression # LOADR16 R1 @offset_Expression ;  Using ->EXPRESSIO
 
 ; Where our stack will start
 :stack
-
