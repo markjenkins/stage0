@@ -44,7 +44,7 @@ vm-trace: vm.h vm.c vm_instructions.c vm_decode.c tty.c dynamic_execution_trace.
 	$(CC) -DVM32=true -ggdb -Dtty_lib=true -DTRACE=true vm.c vm_instructions.c vm_decode.c tty.c dynamic_execution_trace.c -o bin/vm
 
 # Build the roms
-ALL-ROMS: stage0_monitor stage1_assembler-0 SET DEHEX stage1_assembler-1 stage1_assembler-2 M0 CAT lisp cc_x86 forth
+ALL-ROMS: stage0_monitor stage1_assembler-0 SET DEHEX stage1_assembler-1 stage1_assembler-2 M0 M0-compact CAT lisp cc_x86 forth
 
 stage0_monitor: vm stage0/stage0_monitor.hex0 | roms
 	./bin/vm --rom seed/NATIVE/knight/hex0-seed --tape_01 stage0/stage0_monitor.hex0 --tape_02 roms/stage0_monitor
@@ -67,11 +67,8 @@ stage1_assembler-2: stage1_assembler-1 vm stage1/stage1_assembler-2.hex1 | roms
 M0: stage1_assembler-2 vm stage1/M0-macro.hex2 | roms
 	./bin/vm --rom roms/stage1_assembler-2 --tape_01 stage1/M0-macro.hex2 --tape_02 roms/M0 --memory 48K
 
-M0-compact: M0 stage1_assembler-2 vm stage1/M0-macro-compact.s | roms
-	cat High_level_prototypes/defs stage1/M0-macro-compact.s >| M0_TEMP
-	./bin/vm --rom roms/M0 --tape_01 M0_TEMP --tape_02 M0_TEMP2 --memory 64K
-	./bin/vm --rom roms/stage1_assembler-2 --tape_01 M0_TEMP2 --tape_02 roms/M0-compact --memory 5K
-	rm M0_TEMP M0_TEMP2
+M0-compact: stage1_assembler-2 vm stage1/M0-macro-compact.hex2 | roms
+	./bin/vm --rom roms/stage1_assembler-2 --tape_01 stage1/M0-macro-compact.hex2 --tape_02 roms/M0-compact --memory 5K
 
 CAT: M0 stage1_assembler-2 vm High_level_prototypes/defs stage1/CAT.s | roms
 	cat High_level_prototypes/defs stage1/CAT.s >| CAT_TEMP
