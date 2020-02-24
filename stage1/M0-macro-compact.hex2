@@ -39,6 +39,7 @@
 	05001010                           # ADDU R0 R1 R0                            ; 3 times the size of the register is the size of the struct
 	E0002F20 @offset_struct            # STORER16 R0 @offset_struct               ; Set offset_struct
 
+
 ;; Main program
 ;; Reads contents of Tape_01 and applies all Definitions
 ;; Writes results to Tape_02
@@ -71,6 +72,7 @@
 	09000520                           # MOVE R2 R0                               ; Put First string in place
 	09000531                           # MOVE R3 R1                               ; Put Second string in place
 	E0002D240000                       # LOADUI R4 0                              ; Set initial index of 0
+
 :match_cmpbyte
 	0503A024                           # LOADXU8 R0 R2 R4                         ; Get a byte of our first string
 	0503A134                           # LOADXU8 R1 R3 R4                         ; Get a byte of our second string
@@ -95,6 +97,7 @@
 :in_set
 	0902001F                           # PUSHR R1 R15                             ; Protect R1
 	0902002F                           # PUSHR R2 R15                             ; Protect R2 from changes
+
 :in_set_reset
 	E10015210000                       # LOADU8 R2 R1 0                           ; Get char from list
 	E0002C92 @in_set_fail              # JUMP.Z R2 @in_set_fail                   ; Stop when 0 == s[0]
@@ -121,12 +124,14 @@
 :file_print
 	0902002F                           # PUSHR R2 R15                             ; Protect R2 from Overwrite
 	09000520                           # MOVE R2 R0                               ; Put string pointer into place
+
 :file_print_read
 	E10014020000                       # LOAD8 R0 R2 0                            ; Get a char
 	E0002C90 @file_print_done          # JUMP.Z R0 @file_print_done               ; If NULL be done
 	42100200                           # FPUTC                                    ; Write the Char
 	E1000F220001                       # ADDUI R2 R2 1                            ; Point at next CHAR
 	3C00 @file_print_read              # JUMP @file_print_read                    ; Loop again
+
 :file_print_done
 	0902802F                           # POPR R2 R15                              ; Restore R2
 	0D01001F                           # RET R15
@@ -223,6 +228,7 @@
 	0902000F                           # PUSHR R0 R15                             ; Protect R0
 	0902001F                           # PUSHR R1 R15                             ; Protect R1
 	0902002F                           # PUSHR R2 R15                             ; Protect R2
+
 :collect_defines_loop
 	E0002D0F @read_token               # CALLI R15 @read_token                    ; c = read_token();
 	0902000F                           # PUSHR R0 R15                             ; Protect C
@@ -312,6 +318,7 @@
 	3C00 @read_token_done              # JUMP @read_token_done                    ; Be done
 	3C00 @delete_line_comment          # JUMP @delete_line_comment                ; Otherwise keep looping
 
+
 ;; Deal with "RAW STRINGS" and 'HEX LITERALS'
 ;; R1 is already TAPE_01 and R2 is the terminator
 :read_string
@@ -338,10 +345,12 @@
 ;; Clears SCRATCH (R12) and LENGTH (R14-R12) by POPing off the HEAP (R14)
 :clear_scratch
 	0902000F                           # PUSHR R0 R15                             ; Protect R0
+
 :clear_scratch_loop
 	E100C2CE @clear_scratch_done       # CMPJUMPI.E R12 R14 @clear_scratch_done   ; When LENGTH == 0 and SCRATCH is cleared
 	0902810E                           # POP8 R0 R14                              ; Clear the last byte of SCRATCH and decrement LENGTH
 	3C00 @clear_scratch_loop           # JUMP @clear_scratch_loop                 ; Keep looping
+
 :clear_scratch_done
 	0902800F                           # POPR R0 R15                              ; Restore R0
 	0D01001F                           # RET R15
@@ -476,6 +485,7 @@
 	090200CF                           # PUSHR R12 R15                            ; Protect R12
 	E1000FCC0001                       # ADDUI R12 R12 1                          ; Skip past the '"'
 	0D000023                           # FALSE R3                                 ; I = 0
+
 :hexify_string_loop
 	0503C0C3                           # LOADXU16 R0 R12 R3                       ; Grab 2 bytes
 	E100B02000ff                       # ANDI R2 R0 0xFF                          ; Preserve byte to check for NULL
@@ -508,11 +518,13 @@
 	E0002D600008                       # SR0I R0 8                                ; Do high byte first
 	E0002D0F @hex8                     # CALLI R15 @hex8
 	0902800F                           # POPR R0 R15
+
 :hex8
 	0902000F                           # PUSHR R0 R15
 	E0002D600004                       # SR0I R0 4                                ; Do high nybble first
 	E0002D0F @hex4                     # CALLI R15 @hex4
 	0902800F                           # POPR R0 R15
+
 :hex4
 	E100B000000f                       # ANDI R0 R0 0xF                           ; isolate nybble
 	E1000F000030                       # ADDUI R0 R0 48                           ; convert to ascii
@@ -530,6 +542,7 @@
 	0902001F                           # PUSHR R1 R15                             ; Protect R1
 	0902002F                           # PUSHR R2 R15                             ; Protect R2
 	0900042D                           # COPY R2 R13                              ; P = tokens
+
 :find_match_loop
 	E0002C92 @find_match_done          # JUMP.Z R2 @find_match_done               ; Be done if not found
 	E0002E31 @offset_Text              # LOADR16 R1 @offset_Text                  ; Get ->TEXT offset
@@ -544,6 +557,7 @@
 :find_match_success
 	E0002E31 @offset_Expression        # LOADR16 R1 @offset_Expression            ; Using ->EXPRESSION offset
 	05038221                           # LOADX R2 R2 R1                           ; Using P->EXPRESSION
+
 :find_match_done
 	09000502                           # MOVE R0 R2                               ; Put result in R0
 	0902802F                           # POPR R2 R15                              ; Restore R2
