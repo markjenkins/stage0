@@ -17,27 +17,27 @@
 :start
 ;; We will be using R12 for scratch
 ;; We will be using R13 for storage of tokens
-	E0002D2E0800                       # LOADUI R14 0x800                         ; Our malloc pointer (Initialized)
-	E0002D2F $stack                    # LOADUI R15 $stack                        ; Put stack at end of program
+	E0002D2 E 0800                     # LOADUI R14 0x800                         ; Our malloc pointer (Initialized)
+	E0002D2 F $stack                   # LOADUI R15 $stack                        ; Put stack at end of program
 
 ;; Prep TAPE_01
-	E0002D201100                       # LOADUI R0 0x1100
+	E0002D2 0 1100                     # LOADUI R0 0x1100
 	42100000                           # FOPEN_READ
 
 ;; Prep TAPE_02
-	E0002D201101                       # LOADUI R0 0x1101
+	E0002D2 0 1101                     # LOADUI R0 0x1101
 	42100001                           # FOPEN_WRITE
 
 ;; Setup offset table
-	0D000010                           # READSCID R0                              ; Get process capabilities
-	E100B010000f                       # ANDI R1 R0 0xF                           ; We only care about size nybble
-	E0002D200001                       # LOADUI R0 1                              ; Assume we are 8bit
-	05032001                           # SL0 R0 R0 R1                             ; Let size nybble correct answer
-	E0002F20 @offset_Text              # STORER16 R0 @offset_Text                 ; Set ->TEXT offset
-	05001100                           # ADDU R1 R0 R0                            ; twice the size is the offset of the expression
+	0D00001 0                          # READSCID R0                              ; Get process capabilities
+	E100B0 1 0 000f                    # ANDI R1 R0 0xF                           ; We only care about size nybble
+	E0002D2 0 0001                     # LOADUI R0 1                              ; Assume we are 8bit
+	05032 0 0 1                        # SL0 R0 R0 R1                             ; Let size nybble correct answer
+	E0002F2 0 @offset_Text             # STORER16 R0 @offset_Text                 ; Set ->TEXT offset
+	05001 1 0 0                        # ADDU R1 R0 R0                            ; twice the size is the offset of the expression
 	E0002F21 @offset_Expression        # STORER16 R1 @offset_Expression           ; Set ->EXPRESSION offset
-	05001010                           # ADDU R0 R1 R0                            ; 3 times the size of the register is the size of the struct
-	E0002F20 @offset_struct            # STORER16 R0 @offset_struct               ; Set offset_struct
+	05001 0 1 0                        # ADDU R0 R1 R0                            ; 3 times the size of the register is the size of the struct
+	E0002F2 0 @offset_struct           # STORER16 R0 @offset_struct               ; Set offset_struct
 
 
 ;; Main program
@@ -45,18 +45,18 @@
 ;; Writes results to Tape_02
 ;; Accepts no arguments and HALTS when done
 :main
-	090004CE                           # COPY R12 R14                             ; calloc scratch
-	E0002D0F @collect_defines          # CALLI R15 @collect_defines               ; Get all the defines
+	090004 C E                         # COPY R12 R14                             ; calloc scratch
+	E0002D0 F @collect_defines         # CALLI R15 @collect_defines               ; Get all the defines
 
 ;; We need to rewind tape_01 to perform our second pass
-	E0002D201100                       # LOADUI R0 0x1100
+	E0002D2 0 1100                     # LOADUI R0 0x1100
 	42100003                           # REWIND
 
-	0D000020                           # FALSE R0                                 ; Make sure not EOF
+	0D00002 0                          # FALSE R0                                 ; Make sure not EOF
 	E0002D0F @generate_output          # CALLI R15 @generate_output               ; Write the results to Tape_02
-	E0002D201100                       # LOADUI R0 0x1100                         ; Close TAPE_01
+	E0002D2 0 1100                     # LOADUI R0 0x1100                         ; Close TAPE_01
 	42100002                           # FCLOSE
-	E0002D201101                       # LOADUI R0 0x1101                         ; Close TAPE_02
+	E0002D2 0 1101                     # LOADUI R0 0x1101                         ; Close TAPE_02
 	42100002                           # FCLOSE
 	FFFFFFFF                           # HALT                                     ; We are Done
 
@@ -65,76 +65,76 @@
 ;; Receives a CHAR* in R0, CHAR* in R1
 ;; Returns Bool in R0 indicating if strings match
 :match
-	0902001F                           # PUSHR R1 R15                             ; Protect R1
-	0902002F                           # PUSHR R2 R15                             ; Protect R2
-	0902003F                           # PUSHR R3 R15                             ; Protect R3
-	0902004F                           # PUSHR R4 R15                             ; Protect R4
-	09000520                           # MOVE R2 R0                               ; Put First string in place
-	09000531                           # MOVE R3 R1                               ; Put Second string in place
-	E0002D240000                       # LOADUI R4 0                              ; Set initial index of 0
+	090200 1 F                         # PUSHR R1 R15                             ; Protect R1
+	090200 2 F                         # PUSHR R2 R15                             ; Protect R2
+	090200 3 F                         # PUSHR R3 R15                             ; Protect R3
+	090200 4 F                         # PUSHR R4 R15                             ; Protect R4
+	090005 2 0                         # MOVE R2 R0                               ; Put First string in place
+	090005 3 1                         # MOVE R3 R1                               ; Put Second string in place
+	E0002D2 4 0000                     # LOADUI R4 0                              ; Set initial index of 0
 
 :match_cmpbyte
-	0503A024                           # LOADXU8 R0 R2 R4                         ; Get a byte of our first string
-	0503A134                           # LOADXU8 R1 R3 R4                         ; Get a byte of our second string
-	E1000F440001                       # ADDUI R4 R4 1                            ; Prep for next loop
-	09030310                           # CMPSKIP.NE R1 R0                         ; Compare the bytes
-	E0002CA1 @match_cmpbyte            # JUMP.NZ R1 @match_cmpbyte                ; Loop if bytes are equal
+	0503A 0 2 4                        # LOADXU8 R0 R2 R4                         ; Get a byte of our first string
+	0503A 1 3 4                        # LOADXU8 R1 R3 R4                         ; Get a byte of our second string
+	E1000F 4 4 0001                    # ADDUI R4 R4 1                            ; Prep for next loop
+	090303 1 0                         # CMPSKIP.NE R1 R0                         ; Compare the bytes
+	E0002CA 1 @match_cmpbyte           # JUMP.NZ R1 @match_cmpbyte                ; Loop if bytes are equal
 ;; Done
-	0D000022                           # FALSE R2                                 ; Default answer
-	09030301                           # CMPSKIP.NE R0 R1                         ; If ended loop with everything matching
-	0D000032                           # TRUE R2                                  ; Set as TRUE
-	09000502                           # MOVE R0 R2                               ; Prepare for return
-	0902804F                           # POPR R4 R15                              ; Restore R4
-	0902803F                           # POPR R3 R15                              ; Restore R3
-	0902802F                           # POPR R2 R15                              ; Restore R2
-	0902801F                           # POPR R1 R15                              ; Restore R1
-	0D01001F                           # RET R15
+	0D00002 2                          # FALSE R2                                 ; Default answer
+	090303 0 1                         # CMPSKIP.NE R0 R1                         ; If ended loop with everything matching
+	0D00003 2                          # TRUE R2                                  ; Set as TRUE
+	090005 0 2                         # MOVE R0 R2                               ; Prepare for return
+	090280 4 F                         # POPR R4 R15                              ; Restore R4
+	090280 3 F                         # POPR R3 R15                              ; Restore R3
+	090280 2 F                         # POPR R2 R15                              ; Restore R2
+	090280 1 F                         # POPR R1 R15                              ; Restore R1
+	0D01001 F                          # RET R15
 
 
 ;; in_set function
 ;; Receives a Char in R0, char* in R1
 ;; Return result in R0
 :in_set
-	0902001F                           # PUSHR R1 R15                             ; Protect R1
-	0902002F                           # PUSHR R2 R15                             ; Protect R2 from changes
+	090200 1 F                         # PUSHR R1 R15                             ; Protect R1
+	090200 2 F                         # PUSHR R2 R15                             ; Protect R2 from changes
 
 :in_set_reset
-	E10015210000                       # LOADU8 R2 R1 0                           ; Get char from list
-	E0002C92 @in_set_fail              # JUMP.Z R2 @in_set_fail                   ; Stop when 0 == s[0]
-	E100C202 @in_set_done              # CMPJUMPI.E R0 R2 @in_set_done            ; We found a match
-	E1000F110001                       # ADDUI R1 R1 1                            ; Increment to next char
-	E0002CA2 @in_set_reset             # JUMP.NZ R2 @in_set_reset                 ; Iterate if not NULL
+	E10015 2 1 0000                    # LOADU8 R2 R1 0                           ; Get char from list
+	E0002C9 2 @in_set_fail             # JUMP.Z R2 @in_set_fail                   ; Stop when 0 == s[0]
+	E100C2 0 2 @in_set_done            # CMPJUMPI.E R0 R2 @in_set_done            ; We found a match
+	E1000F 1 1 0001                    # ADDUI R1 R1 1                            ; Increment to next char
+	E0002CA 2 @in_set_reset            # JUMP.NZ R2 @in_set_reset                 ; Iterate if not NULL
 
 :in_set_fail
 ;; Looks like not found
-	0D000021                           # FALSE R1                                 ; Return FALSE
+	0D00002 1                          # FALSE R1                                 ; Return FALSE
 
 :in_set_done
-	E000A0210000                       # CMPSKIPI.E R1 0                          ; Provided not FALSE
-	0D000032                           # TRUE R2                                  ; The result is true
-	09000502                           # MOVE R0 R2                               ; Put result in correct place
-	0902802F                           # POPR R2 R15                              ; Restore R2
-	0902801F                           # POPR R1 R15                              ; Restore R1
-	0D01001F                           # RET R15
+	E000A02 1 0000                     # CMPSKIPI.E R1 0                          ; Provided not FALSE
+	0D00003 2                          # TRUE R2                                  ; The result is true
+	090005 0 2                         # MOVE R0 R2                               ; Put result in correct place
+	090280 2 F                         # POPR R2 R15                              ; Restore R2
+	090280 1 F                         # POPR R1 R15                              ; Restore R1
+	0D01001  F                         # RET R15
 
 
 ;; file_print function
 ;; Receives pointer to string in R0 and FILE* in R1
 ;; Returns nothing
 :file_print
-	0902002F                           # PUSHR R2 R15                             ; Protect R2 from Overwrite
-	09000520                           # MOVE R2 R0                               ; Put string pointer into place
+	090200 2 F                         # PUSHR R2 R15                             ; Protect R2 from Overwrite
+	090005 2 0                         # MOVE R2 R0                               ; Put string pointer into place
 
 :file_print_read
-	E10014020000                       # LOAD8 R0 R2 0                            ; Get a char
-	E0002C90 @file_print_done          # JUMP.Z R0 @file_print_done               ; If NULL be done
+	E10014 0 2 0000                    # LOAD8 R0 R2 0                            ; Get a char
+	E0002C9 0 @file_print_done         # JUMP.Z R0 @file_print_done               ; If NULL be done
 	42100200                           # FPUTC                                    ; Write the Char
-	E1000F220001                       # ADDUI R2 R2 1                            ; Point at next CHAR
+	E1000F 2 2 0001                    # ADDUI R2 R2 1                            ; Point at next CHAR
 	3C00 @file_print_read              # JUMP @file_print_read                    ; Loop again
 
 :file_print_done
-	0902802F                           # POPR R2 R15                              ; Restore R2
-	0D01001F                           # RET R15
+	090280 2 F                         # POPR R2 R15                              ; Restore R2
+	0D01001 F                          # RET R15
 
 
 ;; numerate_string function
@@ -143,78 +143,78 @@
 ;; Or Zero in the event of invalid string
 :numerate_string
 ;; Preserve Registers
-	0902001F                           # PUSHR R1 R15
-	0902002F                           # PUSHR R2 R15
-	0902003F                           # PUSHR R3 R15
-	0902004F                           # PUSHR R4 R15
+	090200 1 F                         # PUSHR R1 R15
+	090200 2 F                         # PUSHR R2 R15
+	090200 3 F                         # PUSHR R3 R15
+	090200 4 F                         # PUSHR R4 R15
 
 ;; Initialize
-	09000510                           # MOVE R1 R0                               ; Get Text pointer out of the way
-	0D000022                           # FALSE R2                                 ; Set Negative flag to false
-	0D000023                           # FALSE R3                                 ; Set current count to Zero
-	E10014010001                       # LOAD8 R0 R1 1                            ; Get second byte
-	E000A0300078                       # CMPSKIPI.NE R0 120                       ; If the second byte is x
+	090005 1 0                         # MOVE R1 R0                               ; Get Text pointer out of the way
+	0D00002 2                          # FALSE R2                                 ; Set Negative flag to false
+	0D00002 3                          # FALSE R3                                 ; Set current count to Zero
+	E10014 0 1 0001                    # LOAD8 R0 R1 1                            ; Get second byte
+	E000A03 0 0078                     # CMPSKIPI.NE R0 120                       ; If the second byte is x
 	3C00 @numerate_string_hex          # JUMP @numerate_string_hex                ; treat string like hex
 
 ;; Deal with Decimal input
-	E0002D24000a                       # LOADUI R4 10                             ; Multiply by 10
-	E10014010000                       # LOAD8 R0 R1 0                            ; Get a byte
-	E000A030002d                       # CMPSKIPI.NE R0 45                        ; If - toggle flag
-	0D000032                           # TRUE R2                                  ; So that we know to negate
-	E000A0220000                       # CMPSKIPI.E R2 0                          ; If toggled
-	E1000F110001                       # ADDUI R1 R1 1                            ; Move to next
+	E0002D2 4 000a                     # LOADUI R4 10                             ; Multiply by 10
+	E10014 0 1 0000                    # LOAD8 R0 R1 0                            ; Get a byte
+	E000A03 0 002d                     # CMPSKIPI.NE R0 45                        ; If - toggle flag
+	0D00003 2                          # TRUE R2                                  ; So that we know to negate
+	E000A02 2 0000                     # CMPSKIPI.E R2 0                          ; If toggled
+	E1000F 1 1 0001                    # ADDUI R1 R1 1                            ; Move to next
 
 :numerate_string_dec
-	E10014010000                       # LOAD8 R0 R1 0                            ; Get a byte
+	E10014 0 1 0000                    # LOAD8 R0 R1 0                            ; Get a byte
 
-	E000A0300000                       # CMPSKIPI.NE R0 0                         ; If NULL
+	E000A03 0 0000                     # CMPSKIPI.NE R0 0                         ; If NULL
 	3C00 @numerate_string_done         # JUMP @numerate_string_done               ; Be done
 
-	05006334                           # MUL R3 R3 R4                             ; Shift counter by 10
-	E10010000030                       # SUBI R0 R0 48                            ; Convert ascii to number
-	E000A0100000                       # CMPSKIPI.GE R0 0                         ; If less than a number
+	05006 3 3 4                        # MUL R3 R3 R4                             ; Shift counter by 10
+	E10010 0 0 0030                    # SUBI R0 R0 48                            ; Convert ascii to number
+	E000A01 0 0000                     # CMPSKIPI.GE R0 0                         ; If less than a number
 	3C00 @numerate_string_done         # JUMP @numerate_string_done               ; Terminate NOW
-	E000A050000a                       # CMPSKIPI.L R0 10                         ; If more than a number
+	E000A05 0 000a                     # CMPSKIPI.L R0 10                         ; If more than a number
 	3C00 @numerate_string_done         # JUMP @numerate_string_done               ; Terminate NOW
-	05001330                           # ADDU R3 R3 R0                            ; Don't add to the count
+	05001 3 3 0                        # ADDU R3 R3 R0                            ; Don't add to the count
 
-	E1000F110001                       # ADDUI R1 R1 1                            ; Move onto next byte
+	E1000F 1 1 0001                    # ADDUI R1 R1 1                            ; Move onto next byte
 	3C00 @numerate_string_dec          # JUMP @numerate_string_dec
 
 ;; Deal with Hex input
 :numerate_string_hex
-	E10014010000                       # LOAD8 R0 R1 0                            ; Get a byte
-	E000A0200030                       # CMPSKIPI.E R0 48                         ; All hex strings start with 0x
+	E10014 0 1 0000                    # LOAD8 R0 R1 0                            ; Get a byte
+	E000A02 0 0030                     # CMPSKIPI.E R0 48                         ; All hex strings start with 0x
 	3C00 @numerate_string_done         # JUMP @numerate_string_done               ; Be done if not a match
-	E1000F110002                       # ADDUI R1 R1 2                            ; Move to after leading 0x
+	E1000F 1 1 0002                    # ADDUI R1 R1 2                            ; Move to after leading 0x
 
 :numerate_string_hex_0
-	E10014010000                       # LOAD8 R0 R1 0                            ; Get a byte
-	E0002C90 @numerate_string_done     # JUMP.Z R0 @numerate_string_done          ; If NULL Be done
+	E10014 0 1 0000                    # LOAD8 R0 R1 0                            ; Get a byte
+	E0002C9 0 @numerate_string_done    # JUMP.Z R0 @numerate_string_done          ; If NULL Be done
 
-	E0002D530004                       # SL0I R3 4                                ; Shift counter by 16
-	E10010000030                       # SUBI R0 R0 48                            ; Convert ascii number to number
-	E000A050000a                       # CMPSKIPI.L R0 10                         ; If A-F
-	E10010000007                       # SUBI R0 R0 7                             ; Shove into Range
-	E000A0500010                       # CMPSKIPI.L R0 16                         ; If a-f
-	E10010000020                       # SUBI R0 R0 32                            ; Shove into Range
-	05001330                           # ADDU R3 R3 R0                            ; Add to the count
+	E0002D5 3 0004                     # SL0I R3 4                                ; Shift counter by 16
+	E10010 0 0 0030                    # SUBI R0 R0 48                            ; Convert ascii number to number
+	E000A05 0 000a                     # CMPSKIPI.L R0 10                         ; If A-F
+	E10010000 0 0 7                    # SUBI R0 R0 7                             ; Shove into Range
+	E000A05 0 0010                     # CMPSKIPI.L R0 16                         ; If a-f
+	E10010 0 0 0020                    # SUBI R0 R0 32                            ; Shove into Range
+	05001 3 3 0                        # ADDU R3 R3 R0                            ; Add to the count
 
-	E1000F110001                       # ADDUI R1 R1 1                            ; Get next Hex
+	E1000F 1 1 0001                    # ADDUI R1 R1 1                            ; Get next Hex
 	3C00 @numerate_string_hex_0        # JUMP @numerate_string_hex_0
 
 ;; Clean up
 :numerate_string_done
-	E000A0220000                       # CMPSKIPI.E R2 0                          ; If Negate flag has been set
-	09000033                           # NEG R3 R3                                ; Make the number negative
-	09000503                           # MOVE R0 R3                               ; Put number in R0
+	E000A02 2 0000                     # CMPSKIPI.E R2 0                          ; If Negate flag has been set
+	090000 3 3                         # NEG R3 R3                                ; Make the number negative
+	090005 0 3                         # MOVE R0 R3                               ; Put number in R0
 
 ;; Restore Registers
-	0902804F                           # POPR R4 R15
-	0902803F                           # POPR R3 R15
-	0902802F                           # POPR R2 R15
-	0902801F                           # POPR R1 R15
-	0D01001F                           # RET R15
+	090280 4 F                         # POPR R4 R15
+	090280 3 F                         # POPR R3 R15
+	090280 2 F                         # POPR R2 R15
+	090280 1 F                         # POPR R1 R15
+	0D0100 1 F                         # RET R15
 
 
 ;; collect_defines function
@@ -225,49 +225,49 @@
 ;; Uses R0, R1 and R2 as temps
 ;; Updates R12 scratch, R13 tokens and R14 HEAP
 :collect_defines
-	0902000F                           # PUSHR R0 R15                             ; Protect R0
-	0902001F                           # PUSHR R1 R15                             ; Protect R1
-	0902002F                           # PUSHR R2 R15                             ; Protect R2
+	090200 0 F                         # PUSHR R0 R15                             ; Protect R0
+	090200 1 F                         # PUSHR R1 R15                             ; Protect R1
+	090200 2 F                         # PUSHR R2 R15                             ; Protect R2
 
 :collect_defines_loop
-	E0002D0F @read_token               # CALLI R15 @read_token                    ; c = read_token();
-	0902000F                           # PUSHR R0 R15                             ; Protect C
-	0900040C                           # COPY R0 R12                              ; Using scratch
-	E0002D21 $DEFINE_STRING            # LOADUI R1 $DEFINE_STRING                 ; Using "DEFINE"
-	E0002D0F @match                    # CALLI R15 @match                         ; See if they match
-	E0002CA0 @collect_defines_valid    # JUMP.NZ R0 @collect_defines_valid        ; Looks like we have a match
-	E0002D0F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch buffer
-	0902800F                           # POPR R0 R15                              ; Restore C
-	E0002CC0 @collect_defines_done     # JUMP.NP R0 @collect_defines_done         ; Hit EOF
+	E0002D0 F @read_token              # CALLI R15 @read_token                    ; c = read_token();
+	090200 0 F                         # PUSHR R0 R15                             ; Protect C
+	090004 0 C                         # COPY R0 R12                              ; Using scratch
+	E0002D2 1 $DEFINE_STRING           # LOADUI R1 $DEFINE_STRING                 ; Using "DEFINE"
+	E0002D0 F @match                   # CALLI R15 @match                         ; See if they match
+	E0002CA 0 @collect_defines_valid   # JUMP.NZ R0 @collect_defines_valid        ; Looks like we have a match
+	E0002D0 F @clear_scratch           # CALLI R15 @clear_scratch                 ; Clear out the scratch buffer
+	090280 0 F                         # POPR R0 R15                              ; Restore C
+	E0002CC 0 @collect_defines_done    # JUMP.NP R0 @collect_defines_done         ; Hit EOF
 	3C00 @collect_defines_loop         # JUMP @collect_defines_loop               ; Otherwise keep looping
 
 :collect_defines_valid
-	0902800F                           # POPR R0 R15                              ; Restore C
-	E0002D0F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch buffer
-	E0002E30 @offset_struct            # LOADR16 R0 @offset_struct                ; Get the size of the struct
-	05001EE0                           # ADDU R14 R14 R0                          ; Allocate struct
-	E10020DC0000                       # STORE R13 R12 0                          ; N->NEXT = tokens
-	090004DC                           # COPY R13 R12                             ; tokens = N
-	090004CE                           # COPY R12 R14                             ; SCRATCH = CALLOC(max_string, sizeof(char));
-	E0002D0F @read_token               # CALLI R15 @read_token                    ; get the text of the define
-	E0002E30 @offset_Text              # LOADR16 R0 @offset_Text                  ; Get ->TEXT offset
-	05048CD0                           # STOREX R12 R13 R0                        ; N->TEXT = scratch
-	E1000FEE0001                       # ADDUI R14 R14 1                          ; Add some NULL padding
-	090004CE                           # COPY R12 R14                             ; SCRATCH = CALLOC(max_string, sizeof(char)); length = 0;
-	E0002D0F @read_token               # CALLI R15 @read_token                    ; Get the expression of the define
-	0902000F                           # PUSHR R0 R15                             ; Protect C
-	E0002E30 @offset_Expression        # LOADR16 R0 @offset_Expression            ; Get ->EXPRESSION offset
-	05048CD0                           # STOREX R12 R13 R0                        ; N->EXPRESSION = scratch
-	E1000FEE0001                       # ADDUI R14 R14 1                          ; Add some NULL padding
-	090004CE                           # COPY R12 R14                             ; SCRATCH = CALLOC(max_string, sizeof(char)); length = 0;
-	0902800F                           # POPR R0 R15                              ; Restore C
-	E0002CB0 @collect_defines_loop     # JUMP.P R0 @collect_defines_loop          ; Keep looping if not NULL
+	090280 0 F                         # POPR R0 R15                              ; Restore C
+	E0002D0 F @clear_scratch           # CALLI R15 @clear_scratch                 ; Clear out the scratch buffer
+	E0002E3 0 @offset_struct           # LOADR16 R0 @offset_struct                ; Get the size of the struct
+	05001 E E 0                        # ADDU R14 R14 R0                          ; Allocate struct
+	E10020 D C 0000                    # STORE R13 R12 0                          ; N->NEXT = tokens
+	090004 D C                         # COPY R13 R12                             ; tokens = N
+	090004 C E                         # COPY R12 R14                             ; SCRATCH = CALLOC(max_string, sizeof(char));
+	E0002D0 F @read_token              # CALLI R15 @read_token                    ; get the text of the define
+	E0002E3 0 @offset_Text             # LOADR16 R0 @offset_Text                  ; Get ->TEXT offset
+	05048 C D 0                        # STOREX R12 R13 R0                        ; N->TEXT = scratch
+	E1000F E E 0001                    # ADDUI R14 R14 1                          ; Add some NULL padding
+	090004 C E                         # COPY R12 R14                             ; SCRATCH = CALLOC(max_string, sizeof(char)); length = 0;
+	E0002D0 F @read_token              # CALLI R15 @read_token                    ; Get the expression of the define
+	090200 0 F                         # PUSHR R0 R15                             ; Protect C
+	E0002E3 0 @offset_Expression       # LOADR16 R0 @offset_Expression            ; Get ->EXPRESSION offset
+	05048 C D 0                        # STOREX R12 R13 R0                        ; N->EXPRESSION = scratch
+	E1000F E E 0001                    # ADDUI R14 R14 1                          ; Add some NULL padding
+	090004 C E                         # COPY R12 R14                             ; SCRATCH = CALLOC(max_string, sizeof(char)); length = 0;
+	090280 0 F                         # POPR R0 R15                              ; Restore C
+	E0002CB 0 @collect_defines_loop    # JUMP.P R0 @collect_defines_loop          ; Keep looping if not NULL
 
 :collect_defines_done
-	0902802F                           # POPR R2 R15                              ; Restore R2
-	0902801F                           # POPR R1 R15                              ; Restore R1
-	0902800F                           # POPR R0 R15                              ; Restore R0
-	0D01001F                           # RET R15
+	090280 2 F                         # POPR R2 R15                              ; Restore R2
+	090280 1 F                         # POPR R1 R15                              ; Restore R1
+	090280 0 F                         # POPR R0 R15                              ; Restore R0
+	0D0100 1 F                         # RET R15
 
 
 ;; read_token function
@@ -275,46 +275,46 @@
 ;; Updates the contents of (R12) scratch and (R12-R14)length (via updating HEAP (R14))
 ;; Uses R0, R1 and R2 as temps
 :read_token
-	0902001F                           # PUSHR R1 R15                             ; Protect R1
-	0902002F                           # PUSHR R2 R15                             ; Protect R2
-	E0002D211100                       # LOADUI R1 0x1100                         ; Using TAPE_01
+	090200 1 F                         # PUSHR R1 R15                             ; Protect R1
+	090200 2 F                         # PUSHR R2 R15                             ; Protect R2
+	E0002D2 1 1100                     # LOADUI R1 0x1100                         ; Using TAPE_01
 	42100100                           # FGETC                                    ; Read a byte
 
-	E0002CC0 @read_token_done          # JUMP.NP R0 @read_token_done              ; if EOF, just return EOF
-	E000A030000a                       # CMPSKIPI.NE R0 10                        ; IF '\n' just return '\n'
+	E0002CC 0 @read_token_done         # JUMP.NP R0 @read_token_done              ; if EOF, just return EOF
+	E000A03 0 000a                     # CMPSKIPI.NE R0 10                        ; IF '\n' just return '\n'
 	3C00 @read_token_done              # JUMP @read_token_done                    ; Be done
-	E000A0300009                       # CMPSKIPI.NE R0 9                         ; IF '\t' just return '\t'
+	E000A03 0 0009                     # CMPSKIPI.NE R0 9                         ; IF '\t' just return '\t'
 	3C00 @read_token_done              # JUMP @read_token_done                    ; Be done
-	E000A0300020                       # CMPSKIPI.NE R0 32                        ; IF ' ' just return ' '
+	E000A03 0 0020                     # CMPSKIPI.NE R0 32                        ; IF ' ' just return ' '
 	3C00 @read_token_done              # JUMP @read_token_done                    ; Be done
 
-	09000420                           # COPY R2 R0                               ; Protect C
-	E0002D21 $read_token_comments      # LOADUI R1 $read_token_comments           ; Using "#;"
-	E0002D0F @in_set                   # CALLI R15 @in_set                        ; Check if in set
-	E0002D211100                       # LOADUI R1 0x1100                         ; Using TAPE_01
-	E0002CA0 @delete_line_comment      # JUMP.NZ R0 @delete_line_comment          ; Then it is a line comment and needs to be purged
-	09000402                           # COPY R0 R2                               ; Put C into place for write
-	E000A0300022                       # CMPSKIPI.NE R0 34                        ; IF '"'
+	090004 2 0                         # COPY R2 R0                               ; Protect C
+	E0002D2 1 $read_token_comments     # LOADUI R1 $read_token_comments           ; Using "#;"
+	E0002D0 F @in_set                  # CALLI R15 @in_set                        ; Check if in set
+	E0002D2 1 1100                     # LOADUI R1 0x1100                         ; Using TAPE_01
+	E0002CA 0 @delete_line_comment     # JUMP.NZ R0 @delete_line_comment          ; Then it is a line comment and needs to be purged
+	090004 0 2                         # COPY R0 R2                               ; Put C into place for write
+	E000A03 0 0022                     # CMPSKIPI.NE R0 34                        ; IF '"'
 	3C00 @read_string                  # JUMP @read_string                        ; Collect that string
-	E000A0300027                       # CMPSKIPI.NE R0 39                        ; IF "'"
+	E000A03 0 0027                     # CMPSKIPI.NE R0 39                        ; IF "'"
 	3C00 @read_string                  # JUMP @read_string                        ; Collect that string
 
 ;; Deal with the fallthrough case of a single token
 :read_token_loop
-	0902012E                           # PUSH8 R2 R14                             ; scratch[length] = c; length = length + 1;
-	E0002D211100                       # LOADUI R1 0x1100                         ; Using TAPE_01
+	090201 2 E                         # PUSH8 R2 R14                             ; scratch[length] = c; length = length + 1;
+	E0002D2 1 1100                     # LOADUI R1 0x1100                         ; Using TAPE_01
 	42100100                           # FGETC                                    ; Read a byte
-	09000420                           # COPY R2 R0                               ; Protect C
-	E0002D21 $read_token_whitespace    # LOADUI R1 $read_token_whitespace         ; Using " \t\n"
-	E0002D0F @in_set                   # CALLI R15 @in_set                        ; IF in set
-	E0002C90 @read_token_loop          # JUMP.Z R0 @read_token_loop               ; Otherwise keep looping
-	09000502                           # MOVE R0 R2                               ; Return our C
+	090004 2 0                         # COPY R2 R0                               ; Protect C
+	E0002D2 1 $read_token_whitespace   # LOADUI R1 $read_token_whitespace         ; Using " \t\n"
+	E0002D0 F @in_set                  # CALLI R15 @in_set                        ; IF in set
+	E0002C9 0 @read_token_loop         # JUMP.Z R0 @read_token_loop               ; Otherwise keep looping
+	090005 0 2                         # MOVE R0 R2                               ; Return our C
 	3C00 @read_token_done              # JUMP @read_token_done                    ; else be done
 
 ;; Deal with line comment case
 :delete_line_comment
 	42100100                           # FGETC                                    ; Read a byte
-	E000A030000a                       # CMPSKIPI.NE R0 10                        ; IF '\n'
+	E000A03000 0 a                     # CMPSKIPI.NE R0 10                        ; IF '\n'
 	3C00 @read_token_done              # JUMP @read_token_done                    ; Be done
 	3C00 @delete_line_comment          # JUMP @delete_line_comment                ; Otherwise keep looping
 
@@ -322,14 +322,14 @@
 ;; Deal with "RAW STRINGS" and 'HEX LITERALS'
 ;; R1 is already TAPE_01 and R2 is the terminator
 :read_string
-	0902010E                           # PUSH8 R0 R14                             ; scratch[length] = c; length = length + 1;
+	090201 0 E                         # PUSH8 R0 R14                             ; scratch[length] = c; length = length + 1;
 	42100100                           # FGETC                                    ; Read a byte
-	E100C302 @read_string              # CMPJUMPI.NE R0 R2 @read_string           ; Keep looping if not terminator
+	E100C3 0 2 @read_string            # CMPJUMPI.NE R0 R2 @read_string           ; Keep looping if not terminator
 
 :read_token_done
-	0902802F                           # POPR R2 R15                              ; Restore R2
-	0902801F                           # POPR R1 R15                              ; Restore R1
-	0D01001F                           # RET R15
+	090280 2 F                         # POPR R2 R15                              ; Restore R2
+	090280 1 F                         # POPR R1 R15                              ; Restore R1
+	0D01001 F                          # RET R15
 
 :read_token_comments
 # "#;"
@@ -344,16 +344,16 @@
 ;; Returns nothing
 ;; Clears SCRATCH (R12) and LENGTH (R14-R12) by POPing off the HEAP (R14)
 :clear_scratch
-	0902000F                           # PUSHR R0 R15                             ; Protect R0
+	090200 0 F                         # PUSHR R0 R15                             ; Protect R0
 
 :clear_scratch_loop
-	E100C2CE @clear_scratch_done       # CMPJUMPI.E R12 R14 @clear_scratch_done   ; When LENGTH == 0 and SCRATCH is cleared
-	0902810E                           # POP8 R0 R14                              ; Clear the last byte of SCRATCH and decrement LENGTH
+	E100C2 C E @clear_scratch_done     # CMPJUMPI.E R12 R14 @clear_scratch_done   ; When LENGTH == 0 and SCRATCH is cleared
+	090281 0 E                         # POP8 R0 R14                              ; Clear the last byte of SCRATCH and decrement LENGTH
 	3C00 @clear_scratch_loop           # JUMP @clear_scratch_loop                 ; Keep looping
 
 :clear_scratch_done
-	0902800F                           # POPR R0 R15                              ; Restore R0
-	0D01001F                           # RET R15
+	090280 0 F                         # POPR R0 R15                              ; Restore R0
+	0D01001 F                          # RET R15
 
 
 ;; generate_output function
@@ -364,103 +364,103 @@
 ;; Uses R0, R1 and R2 as temps
 ;; Manipulates SCRATCH (R12) and LENGTH (R14-R12) but should reset HEAP (R14) each loop
 :generate_output
-	E0002CC0 @generate_output_done     # JUMP.NP R0 @generate_output_done         ; Stop if we hit EOF
-	E0002D0F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear the scratch
-	E0002D0F @read_token               # CALLI R15 @read_token                    ; Get a token
-	E100C2CE @generate_output          # CMPJUMPI.E R12 R14 @generate_output      ; Go again if we read nothing
-	09000420                           # COPY R2 R0                               ; Protect C
-	E100140C0000                       # LOAD8 R0 R12 0                           ; SCRATCH[0]
-	E0002D21 $generate_output_hex      # LOADUI R1 $generate_output_hex           ; Using ":!@$%&"
-	E0002D0F @in_set                   # CALLI R15 @in_set                        ; See if worth keeping
-	E0002C90 @generate_output_define   # JUMP.Z R0 @generate_output_define
+	E0002CC 0 @generate_output_done     # JUMP.NP R0 @generate_output_done         ; Stop if we hit EOF
+	E0002D0 F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear the scratch
+	E0002D0 F @read_token               # CALLI R15 @read_token                    ; Get a token
+	E100C2 C E @generate_output         # CMPJUMPI.E R12 R14 @generate_output      ; Go again if we read nothing
+	090004 2 0                          # COPY R2 R0                               ; Protect C
+	E10014 0 C 0000                     # LOAD8 R0 R12 0                           ; SCRATCH[0]
+	E0002D2 1 $generate_output_hex      # LOADUI R1 $generate_output_hex           ; Using ":!@$%&"
+	E0002D0 F @in_set                   # CALLI R15 @in_set                        ; See if worth keeping
+	E0002C9 0 @generate_output_define   # JUMP.Z R0 @generate_output_define
 
 ;; Deal with the case of labels and pointers
-	0900040C                           # COPY R0 R12                              ; Using scratch
-	E0002D211101                       # LOADUI R1 0x1101                         ; And TAPE_02
-	E0002D0F @file_print               # CALLI R15 @file_print                    ; Print it
-	E0002D20000a                       # LOADUI R0 10                             ; Using '\n'
-	42100200                           # FPUTC                                    ; fputc('\n', TAPE_02);
-	09000502                           # MOVE R0 R2                               ; Put C in correct spot for catching EOF
-	3C00 @generate_output              # JUMP @generate_output                    ; Loop it
+	090004 0 C                          # COPY R0 R12                              ; Using scratch
+	E0002D2 1 1101                      # LOADUI R1 0x1101                         ; And TAPE_02
+	E0002D0 F @file_print               # CALLI R15 @file_print                    ; Print it
+	E0002D2 0 000a                      # LOADUI R0 10                             ; Using '\n'
+	42100200                            # FPUTC                                    ; fputc('\n', TAPE_02);
+	090005 0 2                          # MOVE R0 R2                               ; Put C in correct spot for catching EOF
+	3C00 @generate_output               # JUMP @generate_output                    ; Loop it
 
 :generate_output_define
-	0900040C                           # COPY R0 R12                              ; Using SCRATCH
-	E0002D21 $DEFINE_STRING            # LOADUI R1 $DEFINE_STRING                 ; Using "DEFINE"
-	E0002D0F @match                    # CALLI R15 @match                         ; See if we have a match
-	E0002C90 @generate_output_string   # JUMP.Z R0 @generate_output_string        ; If not try a string
+	090004 0 C                          # COPY R0 R12                              ; Using SCRATCH
+	E0002D2 1 $DEFINE_STRING            # LOADUI R1 $DEFINE_STRING                 ; Using "DEFINE"
+	E0002D0 F @match                    # CALLI R15 @match                         ; See if we have a match
+	E0002C9 0 @generate_output_string   # JUMP.Z R0 @generate_output_string        ; If not try a string
 
 ;; Deal with the case of DEFINE statement
-	E0002D0F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch
-	E0002D0F @read_token               # CALLI R15 @read_token                    ; Get a token
-	E0002D0F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch
-	E0002D0F @read_token               # CALLI R15 @read_token                    ; Get a token
-	3C00 @generate_output              # JUMP @generate_output                    ; Loop it
+	E0002D0 F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch
+	E0002D0 F @read_token               # CALLI R15 @read_token                    ; Get a token
+	E0002D0 F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch
+	E0002D0 F @read_token               # CALLI R15 @read_token                    ; Get a token
+	3C00 @generate_output               # JUMP @generate_output                    ; Loop it
 
 :generate_output_string
-	E100140C0000                       # LOAD8 R0 R12 0                           ; SCRATCH[0]
-	E000A0200022                       # CMPSKIPI.E R0 34                         ; If SCRATCH[0] == '"'
-	3C00 @generate_output_literal      # JUMP @generate_output_literal            ; Otherwise try next
+	E10014 0 C 0000                     # LOAD8 R0 R12 0                           ; SCRATCH[0]
+	E000A02 0 0022                      # CMPSKIPI.E R0 34                         ; If SCRATCH[0] == '"'
+	3C00 @generate_output_literal       # JUMP @generate_output_literal            ; Otherwise try next
 
 ;; Deal with the case of "RAW STRING"
-	E0002D211101                       # LOADUI R1 0x1101                         ; And TAPE_02
-	E0002D0F @hexify_string            # CALLI R15 @hexify_string                 ; Write it
-	E0002D20000a                       # LOADUI R0 10                             ; Using '\n'
-	42100200                           # FPUTC                                    ; Write it
-	09000502                           # MOVE R0 R2                               ; Return C
-	3C00 @generate_output              # JUMP @generate_output                    ; Loop it
+	E0002D2 1 1101                      # LOADUI R1 0x1101                         ; And TAPE_02
+	E0002D0 F @hexify_string            # CALLI R15 @hexify_string                 ; Write it
+	E0002D2 0 000a                      # LOADUI R0 10                             ; Using '\n'
+	42100200                            # FPUTC                                    ; Write it
+	090005 0 2                          # MOVE R0 R2                               ; Return C
+	3C00 @generate_output               # JUMP @generate_output                    ; Loop it
 
 :generate_output_literal
-	E000A0200027                       # CMPSKIPI.E R0 39                         ; If SCRATCH[0] == '\''
-	3C00 @generate_output_defined      # JUMP @generate_output_defined            ; Otherwise try next
+	E000A02 0 0027                      # CMPSKIPI.E R0 39                         ; If SCRATCH[0] == '\''
+	3C00 @generate_output_defined       # JUMP @generate_output_defined            ; Otherwise try next
 
 ;; Deal with the case of 'HEX LITERAL'
-	E1000F0C0001                       # ADDUI R0 R12 1                           ; Using SCRATCH + 1
-	E0002D211101                       # LOADUI R1 0x1101                         ; And TAPE_02
-	E0002D0F @file_print               # CALLI R15 @file_print                    ; Print it
-	E0002D20000a                       # LOADUI R0 10                             ; Using '\n'
-	42100200                           # FPUTC                                    ; Write it
-	09000502                           # MOVE R0 R2                               ; Return C
-	3C00 @generate_output              # JUMP @generate_output                    ; Loop it
+	E1000F 0 C 0001                     # ADDUI R0 R12 1                           ; Using SCRATCH + 1
+	E0002D2 1 1101                      # LOADUI R1 0x1101                         ; And TAPE_02
+	E0002D0 F @file_print               # CALLI R15 @file_print                    ; Print it
+	E0002D2 0 000a                      # LOADUI R0 10                             ; Using '\n'
+	42100200                            # FPUTC                                    ; Write it
+	090005 0 2                          # MOVE R0 R2                               ; Return C
+	3C00 @generate_output               # JUMP @generate_output                    ; Loop it
 
 :generate_output_defined
-	E0002D0F @find_match               # CALLI R15 @find_match                    ; Lets see if SCRATCH has a match
-	E0002C90 @generate_output_number   # JUMP.Z R0 @generate_output_number        ; Nope, try a NUMBER
+	E0002D0 F @find_match               # CALLI R15 @find_match                    ; Lets see if SCRATCH has a match
+	E0002C9 0 @generate_output_number   # JUMP.Z R0 @generate_output_number        ; Nope, try a NUMBER
 
 ;; Deal with case of a DEFINED token
-	E0002D211101                       # LOADUI R1 0x1101                         ; And TAPE_02
-	E0002D0F @file_print               # CALLI R15 @file_print                    ; Print it
-	E0002D20000a                       # LOADUI R0 10                             ; Using '\n'
-	42100200                           # FPUTC                                    ; Write it
-	09000502                           # MOVE R0 R2                               ; Return C
-	3C00 @generate_output              # JUMP @generate_output                    ; Loop it
+	E0002D2 1 1101                      # LOADUI R1 0x1101                         ; And TAPE_02
+	E0002D0 F @file_print               # CALLI R15 @file_print                    ; Print it
+	E0002D2 0 000a                      # LOADUI R0 10                             ; Using '\n'
+	42100200                            # FPUTC                                    ; Write it
+	090005 0 2                          # MOVE R0 R2                               ; Return C
+	3C00 @generate_output               # JUMP @generate_output                    ; Loop it
 
 :generate_output_number
-	0900040C                           # COPY R0 R12                              ; Using SCRATCH
-	E100141C0000                       # LOAD8 R1 R12 0                           ; Get SCRATCH[0]
-	E0002D0F @numerate_string          # CALLI R15 @numerate_string               ; See if it is a number
-	E000A0210030                       # CMPSKIPI.E R1 48                         ; IF '0' == SCRATCH[0]
-	E0002C90 @generate_output_fail     # JUMP.Z R0 @generate_output_fail          ; We failed
+	090004 0 C                          # COPY R0 R12                              ; Using SCRATCH
+	E10014 1 C 0000                     # LOAD8 R1 R12 0                           ; Get SCRATCH[0]
+	E0002D0 F @numerate_string          # CALLI R15 @numerate_string               ; See if it is a number
+	E000A02 1 0030                      # CMPSKIPI.E R1 48                         ; IF '0' == SCRATCH[0]
+	E0002C9 0 @generate_output_fail     # JUMP.Z R0 @generate_output_fail          ; We failed
 
 ;; Deal with the case of numbers
-	E0002D211101                       # LOADUI R1 0x1101                         ; And TAPE_02
-	E0002D0F @hex16                    # CALLI R15 @hex16                         ; Write it
-	E0002D20000a                       # LOADUI R0 10                             ; Using '\n'
-	42100200                           # FPUTC                                    ; Write it
-	09000502                           # MOVE R0 R2                               ; Return C
-	3C00 @generate_output              # JUMP @generate_output                    ; Loop it
+	E0002D2 1 1101                      # LOADUI R1 0x1101                         ; And TAPE_02
+	E0002D0 F @hex16                    # CALLI R15 @hex16                         ; Write it
+	E0002D2 0 000a                      # LOADUI R0 10                             ; Using '\n'
+	42100200                            # FPUTC                                    ; Write it
+	090005 0 2                          # MOVE R0 R2                               ; Return C
+	3C00 @generate_output               # JUMP @generate_output                    ; Loop it
 
 :generate_output_fail
-	0D000021                           # FALSE R1                                 ; Write to STDOUT
-	E0002D20 $generate_output_message1 # LOADUI R0 $generate_output_message1      ; Put our header
-	E0002D0F @file_print               # CALLI R15 @file_print                    ; Print it
-	0900050C                           # MOVE R0 R12                              ; Using SCRATCH
-	E0002D0F @file_print               # CALLI R15 @file_print                    ; Print it
-	E0002D20 $generate_output_message2 # LOADUI R0 $generate_output_message2      ; Put our header
-	E0002D0F @file_print               # CALLI R15 @file_print                    ; Print it
-	FFFFFFFF                           # HALT                                     ; FUCK
+	0D00002 1                           # FALSE R1                                 ; Write to STDOUT
+	E0002D2 0 $generate_output_message1 # LOADUI R0 $generate_output_message1      ; Put our header
+	E0002D0 F @file_print               # CALLI R15 @file_print                    ; Print it
+	090005 0 C                          # MOVE R0 R12                              ; Using SCRATCH
+	E0002D0 F @file_print               # CALLI R15 @file_print                    ; Print it
+	E0002D2 0 $generate_output_message2 # LOADUI R0 $generate_output_message2      ; Put our header
+	E0002D0 F @file_print               # CALLI R15 @file_print                    ; Print it
+	FFFFFFFF                            # HALT                                     ; FUCK
 
 :generate_output_done
-	0D01001F                           # RET R15
+	0D01001 F                           # RET R15
 
 :generate_output_hex
 # ":!@$%&"
@@ -480,33 +480,33 @@
 ;; Writes SCRATCH (R12)
 ;; Uses R2 to check for hitting NULL and R3 for I
 :hexify_string
-	0902002F                           # PUSHR R2 R15                             ; Protect R2
-	0902003F                           # PUSHR R3 R15                             ; Protect R3
-	090200CF                           # PUSHR R12 R15                            ; Protect R12
-	E1000FCC0001                       # ADDUI R12 R12 1                          ; Skip past the '"'
-	0D000023                           # FALSE R3                                 ; I = 0
+	090200 2 F                         # PUSHR R2 R15                             ; Protect R2
+	090200 3 F                         # PUSHR R3 R15                             ; Protect R3
+	090200 C F                         # PUSHR R12 R15                            ; Protect R12
+	E1000F C C 0001                    # ADDUI R12 R12 1                          ; Skip past the '"'
+	0D00002 3                          # FALSE R3                                 ; I = 0
 
 :hexify_string_loop
-	0503C0C3                           # LOADXU16 R0 R12 R3                       ; Grab 2 bytes
-	E100B02000ff                       # ANDI R2 R0 0xFF                          ; Preserve byte to check for NULL
-	E0002D0F @hex16                    # CALLI R15 @hex16                         ; Convert to hex and print
-	E1000F330002                       # ADDUI R3 R3 2                            ; I = I + 2
-	E0002CA2 @hexify_string_loop       # JUMP.NZ R2 @hexify_string_loop
+	0503C 0 C 3                        # LOADXU16 R0 R12 R3                       ; Grab 2 bytes
+	E100B0 2 0 00ff                    # ANDI R2 R0 0xFF                          ; Preserve byte to check for NULL
+	E0002D0 F @hex16                   # CALLI R15 @hex16                         ; Convert to hex and print
+	E1000F 3 3 0002                    # ADDUI R3 R3 2                            ; I = I + 2
+	E0002CA 2 @hexify_string_loop      # JUMP.NZ R2 @hexify_string_loop
 
 ;; Deal with extra padding
 :hexify_string_padding
-	0D000020                           # FALSE R0                                 ; Writing ZERO
-	E100B0330003                       # ANDI R3 R3 0x3                           ; (I & 0x3)
-	E0002C93 @hexify_string_done       # JUMP.Z R3 @hexify_string_done            ; IF (0 == (I & 0x3)) be done
-	E0002D0F @hex8                     # CALLI R15 @hex8                          ; Write another NULL byte
-	E1000F330001                       # ADDUI R3 R3 1                            ; I = I + 1
+	0D00002 0                          # FALSE R0                                 ; Writing ZERO
+	E100B0 3 3 0003                    # ANDI R3 R3 0x3                           ; (I & 0x3)
+	E0002C9 3 @hexify_string_done      # JUMP.Z R3 @hexify_string_done            ; IF (0 == (I & 0x3)) be done
+	E0002D0 F @hex8                    # CALLI R15 @hex8                          ; Write another NULL byte
+	E1000F 3 3 0001                    # ADDUI R3 R3 1                            ; I = I + 1
 	3C00 @hexify_string_padding        # JUMP @hexify_string_padding              ; Keep padding
 
 :hexify_string_done
-	090280CF                           # POPR R12 R15                             ; Restore R12
-	0902803F                           # POPR R3 R15                              ; Restore R3
-	0902802F                           # POPR R2 R15                              ; Restore R2
-	0D01001F                           # RET R15
+	090280 C F                         # POPR R12 R15                             ; Restore R12
+	090280 3 F                         # POPR R3 R15                              ; Restore R3
+	090280 2 F                         # POPR R2 R15                              ; Restore R2
+	0D0100 1 F                         # RET R15
 
 
 ;; hex16 functionality
@@ -514,24 +514,24 @@
 ;; And FILE* output in R1
 ;; Returns to whatever called it
 :hex16
-	0902000F                           # PUSHR R0 R15
-	E0002D600008                       # SR0I R0 8                                ; Do high byte first
-	E0002D0F @hex8                     # CALLI R15 @hex8
-	0902800F                           # POPR R0 R15
+	090200 0 F                         # PUSHR R0 R15
+	E0002D6 0 0008                     # SR0I R0 8                                ; Do high byte first
+	E0002D0 F @hex8                    # CALLI R15 @hex8
+	090280 0 F                         # POPR R0 R15
 
 :hex8
-	0902000F                           # PUSHR R0 R15
-	E0002D600004                       # SR0I R0 4                                ; Do high nybble first
-	E0002D0F @hex4                     # CALLI R15 @hex4
-	0902800F                           # POPR R0 R15
+	090200 0 F                         # PUSHR R0 R15
+	E0002D6 0 0004                     # SR0I R0 4                                ; Do high nybble first
+	E0002D0 F @hex4                    # CALLI R15 @hex4
+	090280 0 F                         # POPR R0 R15
 
 :hex4
-	E100B000000f                       # ANDI R0 R0 0xF                           ; isolate nybble
-	E1000F000030                       # ADDUI R0 R0 48                           ; convert to ascii
-	E000A0400039                       # CMPSKIPI.LE R0 57                        ; If nybble was greater than '9'
-	E1000F000007                       # ADDUI R0 R0 7                            ; Shift it into 'A' range of ascii
+	E100B0 0 0 000f                    # ANDI R0 R0 0xF                           ; isolate nybble
+	E1000F 0 0 0030                    # ADDUI R0 R0 48                           ; convert to ascii
+	E000A04 0 0039                     # CMPSKIPI.LE R0 57                        ; If nybble was greater than '9'
+	E1000F 0 0 0007                    # ADDUI R0 R0 7                            ; Shift it into 'A' range of ascii
 	42100200                           # FPUTC                                    ; Write HEX
-	0D01001F                           # RET R15                                  ; Get next nybble or return if done
+	0D01001 F                          # RET R15                                  ; Get next nybble or return if done
 
 
 ;; find_match function
@@ -539,30 +539,30 @@
 ;; And tokens in R13
 ;; Returns NULL or EXPRESSION if match found
 :find_match
-	0902001F                           # PUSHR R1 R15                             ; Protect R1
-	0902002F                           # PUSHR R2 R15                             ; Protect R2
-	0900042D                           # COPY R2 R13                              ; P = tokens
+	090200 1 F                         # PUSHR R1 R15                             ; Protect R1
+	090200 2 F                         # PUSHR R2 R15                             ; Protect R2
+	090004 2 D                         # COPY R2 R13                              ; P = tokens
 
 :find_match_loop
-	E0002C92 @find_match_done          # JUMP.Z R2 @find_match_done               ; Be done if not found
-	E0002E31 @offset_Text              # LOADR16 R1 @offset_Text                  ; Get ->TEXT offset
-	05038021                           # LOADX R0 R2 R1                           ; Using P->TEXT
-	0900041C                           # COPY R1 R12                              ; Using SCRATCH
-	E0002D0F @match                    # CALLI R15 @match                         ; See if they match
-	E0002CA0 @find_match_success       # JUMP.NZ R0 @find_match_success           ; Found it
-	E10013220000                       # LOAD R2 R2 0                             ; P = P->NEXT
+	E0002C9 2 @find_match_done         # JUMP.Z R2 @find_match_done               ; Be done if not found
+	E0002E3 1 @offset_Text             # LOADR16 R1 @offset_Text                  ; Get ->TEXT offset
+	05038 0 2 1                        # LOADX R0 R2 R1                           ; Using P->TEXT
+	090004 1 C                         # COPY R1 R12                              ; Using SCRATCH
+	E0002D0 F @match                   # CALLI R15 @match                         ; See if they match
+	E0002CA 0 @find_match_success      # JUMP.NZ R0 @find_match_success           ; Found it
+	E10013 2 2 0000                    # LOAD R2 R2 0                             ; P = P->NEXT
 	3C00 @find_match_loop              # JUMP @find_match_loop                    ; Keep looping
 
 ;; Deal with match
 :find_match_success
-	E0002E31 @offset_Expression        # LOADR16 R1 @offset_Expression            ; Using ->EXPRESSION offset
-	05038221                           # LOADX R2 R2 R1                           ; Using P->EXPRESSION
+	E0002E3 1 @offset_Expression       # LOADR16 R1 @offset_Expression            ; Using ->EXPRESSION offset
+	05038 2 2 1                        # LOADX R2 R2 R1                           ; Using P->EXPRESSION
 
 :find_match_done
-	09000502                           # MOVE R0 R2                               ; Put result in R0
-	0902802F                           # POPR R2 R15                              ; Restore R2
-	0902801F                           # POPR R1 R15                              ; Restore R1
-	0D01001F                           # RET R15
+	090005 0 2                         # MOVE R0 R2                               ; Put result in R0
+	090280 2 F                         # POPR R2 R15                              ; Restore R2
+	090280 1 F                         # POPR R1 R15                              ; Restore R1
+	0D01001 F                          # RET R15
 
 
 ;; offset table
