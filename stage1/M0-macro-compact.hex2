@@ -48,7 +48,7 @@
 	090004 C E                         # COPY R12 R14                             ; calloc scratch
 	E0002D0 F @collect_defines         # CALLI R15 @collect_defines               ; Get all the defines
 
-;; We need to rewind tape_01 to perform our second pass
+	;; We need to rewind tape_01 to perform our second pass
 	E0002D2 0 1100                     # LOADUI R0 0x1100
 	42100003                           # REWIND
 
@@ -79,7 +79,7 @@
 	E1000F 4 4 0001                    # ADDUI R4 R4 1                            ; Prep for next loop
 	090303 1 0                         # CMPSKIP.NE R1 R0                         ; Compare the bytes
 	E0002CA 1 @match_cmpbyte           # JUMP.NZ R1 @match_cmpbyte                ; Loop if bytes are equal
-;; Done
+	;; Done
 	0D00002 2                          # FALSE R2                                 ; Default answer
 	090303 0 1                         # CMPSKIP.NE R0 R1                         ; If ended loop with everything matching
 	0D00003 2                          # TRUE R2                                  ; Set as TRUE
@@ -106,7 +106,7 @@
 	E0002CA 2 @in_set_reset            # JUMP.NZ R2 @in_set_reset                 ; Iterate if not NULL
 
 :in_set_fail
-;; Looks like not found
+	;; Looks like not found
 	0D00002 1                          # FALSE R1                                 ; Return FALSE
 
 :in_set_done
@@ -374,7 +374,7 @@
 	E0002D0 F @in_set                   # CALLI R15 @in_set                        ; See if worth keeping
 	E0002C9 0 @generate_output_define   # JUMP.Z R0 @generate_output_define
 
-;; Deal with the case of labels and pointers
+	;; Deal with the case of labels and pointers
 	090004 0 C                          # COPY R0 R12                              ; Using scratch
 	E0002D2 1 1101                      # LOADUI R1 0x1101                         ; And TAPE_02
 	E0002D0 F @file_print               # CALLI R15 @file_print                    ; Print it
@@ -389,7 +389,7 @@
 	E0002D0 F @match                    # CALLI R15 @match                         ; See if we have a match
 	E0002C9 0 @generate_output_string   # JUMP.Z R0 @generate_output_string        ; If not try a string
 
-;; Deal with the case of DEFINE statement
+	;; Deal with the case of DEFINE statement
 	E0002D0 F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch
 	E0002D0 F @read_token               # CALLI R15 @read_token                    ; Get a token
 	E0002D0 F @clear_scratch            # CALLI R15 @clear_scratch                 ; Clear out the scratch
@@ -441,7 +441,7 @@
 	E000A02 1 0030                      # CMPSKIPI.E R1 48                         ; IF '0' == SCRATCH[0]
 	E0002C9 0 @generate_output_fail     # JUMP.Z R0 @generate_output_fail          ; We failed
 
-;; Deal with the case of numbers
+	;; Deal with the case of numbers
 	E0002D2 1 1101                      # LOADUI R1 0x1101                         ; And TAPE_02
 	E0002D0 F @hex16                    # CALLI R15 @hex16                         ; Write it
 	E0002D2 0 000a                      # LOADUI R0 10                             ; Using '\n'
@@ -493,7 +493,7 @@
 	E1000F 3 3 0002                    # ADDUI R3 R3 2                            ; I = I + 2
 	E0002CA 2 @hexify_string_loop      # JUMP.NZ R2 @hexify_string_loop
 
-;; Deal with extra padding
+	;; Deal with extra padding
 :hexify_string_padding
 	0D00002 0                          # FALSE R0                                 ; Writing ZERO
 	E100B0 3 3 0003                    # ANDI R3 R3 0x3                           ; (I & 0x3)
@@ -553,7 +553,7 @@
 	E10013 2 2 0000                    # LOAD R2 R2 0                             ; P = P->NEXT
 	3C00 @find_match_loop              # JUMP @find_match_loop                    ; Keep looping
 
-;; Deal with match
+	;; Deal with match
 :find_match_success
 	E0002E3 1 @offset_Expression       # LOADR16 R1 @offset_Expression            ; Using ->EXPRESSION offset
 	05038 2 2 1                        # LOADX R2 R2 R1                           ; Using P->EXPRESSION
