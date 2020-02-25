@@ -35,7 +35,7 @@
 	05032 0 0 1                        # SL0 R0 R0 R1                             ; Let size nybble correct answer
 	E0002F2 0 @offset_Text             # STORER16 R0 @offset_Text                 ; Set ->TEXT offset
 	05001 1 0 0                        # ADDU R1 R0 R0                            ; twice the size is the offset of the expression
-	E0002F21 @offset_Expression        # STORER16 R1 @offset_Expression           ; Set ->EXPRESSION offset
+	E0002F2 1 @offset_Expression       # STORER16 R1 @offset_Expression           ; Set ->EXPRESSION offset
 	05001 0 1 0                        # ADDU R0 R1 R0                            ; 3 times the size of the register is the size of the struct
 	E0002F2 0 @offset_struct           # STORER16 R0 @offset_struct               ; Set offset_struct
 
@@ -53,7 +53,7 @@
 	42100003                           # REWIND
 
 	0D00002 0                          # FALSE R0                                 ; Make sure not EOF
-	E0002D0F @generate_output          # CALLI R15 @generate_output               ; Write the results to Tape_02
+	E0002D0 F @generate_output         # CALLI R15 @generate_output               ; Write the results to Tape_02
 	E0002D2 0 1100                     # LOADUI R0 0x1100                         ; Close TAPE_01
 	42100002                           # FCLOSE
 	E0002D2 0 1101                     # LOADUI R0 0x1101                         ; Close TAPE_02
@@ -195,7 +195,7 @@
 	E0002D5 3 0004                     # SL0I R3 4                                ; Shift counter by 16
 	E10010 0 0 0030                    # SUBI R0 R0 48                            ; Convert ascii number to number
 	E000A05 0 000a                     # CMPSKIPI.L R0 10                         ; If A-F
-	E10010000 0 0 7                    # SUBI R0 R0 7                             ; Shove into Range
+	E10010 0 0 0007                    # SUBI R0 R0 7                             ; Shove into Range
 	E000A05 0 0010                     # CMPSKIPI.L R0 16                         ; If a-f
 	E10010 0 0 0020                    # SUBI R0 R0 32                            ; Shove into Range
 	05001 3 3 0                        # ADDU R3 R3 R0                            ; Add to the count
@@ -214,7 +214,7 @@
 	090280 3 F                         # POPR R3 R15
 	090280 2 F                         # POPR R2 R15
 	090280 1 F                         # POPR R1 R15
-	0D0100 1 F                         # RET R15
+	0D01001 F                          # RET R15
 
 
 ;; collect_defines function
@@ -267,7 +267,7 @@
 	090280 2 F                         # POPR R2 R15                              ; Restore R2
 	090280 1 F                         # POPR R1 R15                              ; Restore R1
 	090280 0 F                         # POPR R0 R15                              ; Restore R0
-	0D0100 1 F                         # RET R15
+	0D01001 F                          # RET R15
 
 
 ;; read_token function
@@ -314,7 +314,7 @@
 ;; Deal with line comment case
 :delete_line_comment
 	42100100                           # FGETC                                    ; Read a byte
-	E000A03000 0 a                     # CMPSKIPI.NE R0 10                        ; IF '\n'
+	E000A03 0 000a                     # CMPSKIPI.NE R0 10                        ; IF '\n'
 	3C00 @read_token_done              # JUMP @read_token_done                    ; Be done
 	3C00 @delete_line_comment          # JUMP @delete_line_comment                ; Otherwise keep looping
 
@@ -506,7 +506,7 @@
 	090280 C F                         # POPR R12 R15                             ; Restore R12
 	090280 3 F                         # POPR R3 R15                              ; Restore R3
 	090280 2 F                         # POPR R2 R15                              ; Restore R2
-	0D0100 1 F                         # RET R15
+	0D01001 F                          # RET R15
 
 
 ;; hex16 functionality
