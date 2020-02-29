@@ -273,6 +273,36 @@ KNIGHT_REGISTER_SYMBOLS = {
     for i in range(NUM_REGISTERS)
     }
 
+(INSTRUCT_NYBLES_AFT_PREFIX,
+ INSTRUCT_NUM_REG_OPERANDS,
+ INSTRUCT_IMMEDIATE_NYBLE_LEN,
+ INSTRUCT_SHARED_PREFIX_LOOKUP,
+) = range(4)
+
+INSTRUCTION_STRUCTURE = {
+    '01': (2, 4, None), # 4 OP Integer Group
+    '05': (3, 3, None), # 3 OP Integer Group
+    '09': (4, 2, None), # 2 OP Integer Group
+    '0D': (5, 1, None), # 1 OP Group
+    'E1': (4, 2, 4),    # 2 OP Immediate Group
+    'E0': (5, 1, 4),    # 1 OP Immediate Group
+    '3C': (2, 0, 4),    # 0 OP Immediate Group
+    '42': (6, 0, None), # HALCODE Group
+    '00': (6, 0, None), # 0 OP Group '00' prefix
+    'FF': (6, 0, None), # 0 OP Group 'FF' prefix
+    }
+
+INSTRUCTION_PREFIX_LEN = 2
+if __debug__:
+    for key in INSTRUCTION_STRUCTURE.keys():
+        assert( len(key) == INSTRUCTION_PREFIX_LEN )
+
+class InvalidInstructionDefinitionException(Exception):
+    def __init__(self, instruct_name, instruct_hex, msg):
+        Exception.__init__(self,
+            "definition for %s, %s %s" % (
+                instruct_name, instruct_hex, msg))
+
 def filter_M1_py_symbol_table_to_simple_dict(symbols):
     return {
         macro_name: macro_detailed_definition[TOK_EXPR]
@@ -297,9 +327,67 @@ def get_knight_instruction_definititions_from_file(definitions_file):
         set( (tuple(KNIGHT_REGISTER_SYMBOLS.keys()) + ('NULL',)) )
         )
 
+def remove_prefix_from_instruct_hex(instruct_hex):
+    return instruct_hex[INSTRUCTION_PREFIX_LEN:]
+
+def expand_instruct_struct_define_if_valid(
+        prefix,
+        instruct_struct_define,
+        pairs_for_this_prefix):
+    # validity check, nybles after prefix must be the right length
+    for instruct_hex, instruct_name in pairs_for_this_prefix:
+        instruct_hex_after_prefix = \
+            remove_prefix_from_instruct_hex(instruct_hex)
+        nybles_after_prefix = instruct_struct_define[
+            INSTRUCT_NYBLES_AFT_PREFIX]
+        if len(instruct_hex_after_prefix) != nybles_after_prefix:
+            raise InvalidInstructionDefinitionException(
+                instruct_name, instruct_hex,
+                "does not have %d nybles after prefix (%s) had %d" % (
+                    nybles_after_prefix,
+                    instruct_hex_after_prefix,
+                    len(instruct_hex_after_prefix))
+                )
+    return ( # start of tuple appending expression
+        instruct_struct_define + # tuple appending operator
+        ( # start of singleton tuple
+            {
+                remove_prefix_from_instruct_hex(instruct_hex):
+                instruct_name
+                for instruct_hex, instruct_name in pairs_for_this_prefix
+            }
+            ,) # end singleton tuple
+    ) # end tuple appending expression
+
+def get_knight_instruction_structure_from_file(definitions_file):
+    symbols = get_knight_instruction_definititions_from_file(definitions_file)
+    for symname, symvalue in symbols.items():
+        if symvalue[0:INSTRUCTION_PREFIX_LEN] not in INSTRUCTION_STRUCTURE:
+            raise InvalidInstructionDefinitionException(
+                symname, symvalue, "has unknown prefix")
+
+    instruction_pairs_per_prefix = {
+        prefix: [
+            (symvalue, symname)
+            for symname, symvalue in symbols.items()
+            if symvalue.startswith(prefix)
+        ] # list comprehension
+        for prefix in INSTRUCTION_STRUCTURE.keys()
+        }
+
+    return {
+        prefix:
+        expand_instruct_struct_define_if_valid(
+            prefix,
+            instruct_struct_define,
+            instruction_pairs_per_prefix[prefix]
+        ) # expand_instruct_struct_define_if_valid
+        for prefix, instruct_struct_define in INSTRUCTION_STRUCTURE.items()
+        }
+
 def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
 
 if __name__ == "__main__":
     STAGE0_KNIGHT_DEFS = get_stage0_knight_defs_filename()
-    print(get_knight_instruction_definititions_from_file(STAGE0_KNIGHT_DEFS))
+    print(get_knight_instruction_structure_from_file(STAGE0_KNIGHT_DEFS))
