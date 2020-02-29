@@ -266,20 +266,40 @@ def get_macros_defined_and_add_to_sym_table(f, symbols=None):
 
 # Everything below is the unique code of disasm.py
 
+NUM_REGISTERS = 16
+
+KNIGHT_REGISTER_SYMBOLS = {
+    'R%d' % i: i
+    for i in range(NUM_REGISTERS)
+    }
+
 def filter_M1_py_symbol_table_to_simple_dict(symbols):
     return {
         macro_name: macro_detailed_definition[TOK_EXPR]
         for macro_name, macro_detailed_definition in symbols.items()
     }
 
+def filter_unwanted_symbols(symbols, unwanted):
+    return {
+        key: value
+        for key, value in symbols.items()
+        if key not in unwanted
+        }
+
 def get_macro_definitions_from_file(definitions_file):
     with open(definitions_file) as f:
         symbols = get_macros_defined_and_add_to_sym_table(f)
     return filter_M1_py_symbol_table_to_simple_dict(symbols)
+
+def get_knight_instruction_definititions_from_file(definitions_file):
+    return filter_unwanted_symbols(
+        get_macro_definitions_from_file(definitions_file),
+        set( (tuple(KNIGHT_REGISTER_SYMBOLS.keys()) + ('NULL',)) )
+        )
 
 def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
 
 if __name__ == "__main__":
     STAGE0_KNIGHT_DEFS = get_stage0_knight_defs_filename()
-    print(get_macro_definitions_from_file(STAGE0_KNIGHT_DEFS))
+    print(get_knight_instruction_definititions_from_file(STAGE0_KNIGHT_DEFS))
