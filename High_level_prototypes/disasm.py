@@ -438,19 +438,27 @@ def dissassemble_knight_binary(
         definitions_file = get_stage0_knight_defs_filename()
     instruction_structure = get_knight_instruction_structure_from_file(
         definitions_file)
+
+    AFTER_DATA_CHARS = "'\n"
+    last_was_data = False
     for content, annotations in replace_instructions_in_hex_nyble_stream(
             binary_to_annotated_hex(binary_fileobj),
             instruction_structure
             ):
         if annotations[NY_ANNO_IS_DATA]:
             if ( ( annotations[NY_ANNO_ADDRESS]) % 4 == 0 and
-                 annotations[NY_ANNO_FIRST_NYBLE] and
-                 annotations[NY_ANNO_ADDRESS]>0
-            ):
-                output_fileobj.write('\n')
+                 annotations[NY_ANNO_FIRST_NYBLE] ):
+                if annotations[NY_ANNO_ADDRESS]>0:
+                    output_fileobj.write(AFTER_DATA_CHARS)
+                output_fileobj.write( "'" )
             output_fileobj.write( content )
-    output_fileobj.write('\n')
-
+            last_was_data = True
+        else:
+            if last_was_data:
+                output_fileobj.write(AFTER_DATA_CHARS)
+            last_was_data = False
+    if last_was_data:
+        output_fileobj.write(AFTER_DATA_CHARS)
 
 def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
