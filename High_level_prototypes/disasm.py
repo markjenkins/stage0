@@ -21,6 +21,7 @@ from __future__ import division
 from os.path import dirname, join as path_join
 from binascii import hexlify
 from sys import argv, stdout
+from collections import deque
 
 # The following globals, class and function definitions are copy-pasted
 # from M1.py in https://github.com/markjenkins/knightpies
@@ -307,6 +308,16 @@ class InvalidInstructionDefinitionException(Exception):
             "definition for %s, %s %s" % (
                 instruct_name, instruct_hex, msg))
 
+def num_nybles_from_immediate(lookup_struct):
+    return (0 if None == lookup_struct[INSTRUCT_IMMEDIATE_NYBLE_LEN]
+            else lookup_struct[INSTRUCT_IMMEDIATE_NYBLE_LEN])
+
+def num_nybles_from_register_operands_and_immediate(lookup_struct):
+    return (
+        lookup_struct[INSTRUCT_NUM_REG_OPERANDS] +
+        num_nybles_from_immediate(lookup_struct)
+    ) # end addition expression
+
 def filter_M1_py_symbol_table_to_simple_dict(symbols):
     return {
         macro_name: macro_detailed_definition[TOK_EXPR]
@@ -396,28 +407,170 @@ def annotate_nyble_as_data(nyble_annotations):
             (True, ) + # NY_ANNO_IS_DATA
             nyble_annotations[NY_ANNO_IS_DATA+1:] )
 
+# this is a helper called by replace_instructions_in_hex_nyble_stream
+# all asserts assume that context
+def construct_annotated_instruction(
+        instruction_structure,
+        instruction_prefix,
+        remainder_of_opcode_hex,
+        operand_nybles_annotated,
+        first_nyble_annotations,
+):
+
+    assert( instruction_prefix in instruction_structure )
+    instruct_table = instruction_structure[instruction_prefix]
+
+    remainder_opcode_table = instruct_table[INSTRUCT_SHARED_PREFIX_LOOKUP]
+    assert(  remainder_of_opcode_hex in remainder_opcode_table )
+    opcode_name = remainder_opcode_table[remainder_of_opcode_hex]
+    opcode_fullhex = instruction_prefix + remainder_of_opcode_hex# string append
+
+    immediate_len = num_nybles_from_immediate(instruct_table)
+    if immediate_len>0:
+        # negatives in python slices allow for getting last n
+        # so first example here gets last n
+        # and second example here is everything up to last n
+        immediate_nybles = operand_nybles_annotated[-immediate_len:]
+        immediate_nybles_string = ''.join(
+            immediate_hex_nyble
+            for immediate_hex_nyble, immediate_annotation in immediate_nybles)
+        immediate_unsigned_value = int(immediate_nybles_string, 16)
+        immediate_string = "0x%.4X" % immediate_unsigned_value
+        reg_operand_nybles = operand_nybles_annotated[:-immediate_len]
+    else:
+        immediate_nybles = ()
+        immediate_unsigned_value = None
+        immediate_string = ''
+        reg_operand_nybles = operand_nybles_annotated
+
+    register_operands_string = ' '.join(
+        "R%d" % int(operand_in_hex,16)
+        for operand_in_hex, operand_annotations in reg_operand_nybles
+        )
+
+    full_instruction_string = (# start expression for string
+        "%s %s %s" % (opcode_name, register_operands_string, immediate_string)
+    ).strip() # strip() covers case of immediate_string==''
+
+    return (full_instruction_string,
+            (False, # NY_ANNO_IS_DATA, it's not data its an instruction!
+             first_nyble_annotations[NY_ANNO_ADDRESS], # NY_ANNO_ADDRESS
+             True, # NY_ANNO_FIRST_NYBLE, instructions start on byte boundary
+            )
+    )
+
 def replace_instructions_in_hex_nyble_stream(
         hex_nyble_stream, instruction_structure):
+    # any annotated nybles we pull from hex_nyble_stream might get
+    # tossed into this lookahead buffer [first in first out /FIFO with
+    # append() and popleft() ] if it turns out that oops, they were not what
+    # we thought they were
+    lookahead_buffer = deque()
+
+    # the act of getting the next annotated nyble is first to look at the
+    # lookahead_buffer for ones we oops on, otherwise pull from hex_nyble_stream
+    # which could raise StopIteration if we reach end of file / stream
+    def get_next_nyble():
+        if len(lookahead_buffer)>0:
+            return lookahead_buffer.popleft()
+        else:
+            # raise StopIteration
+            return next(hex_nyble_stream)
+
+    def try_to_consume_n_nybles(n):
+        nybles = []
+        for i in range(n):
+            try:
+                nybles.append(get_next_nyble())
+            # if we hit end of file, put the nybles back and report failure
+            except StopIteration:
+                lookahead_buffer.extend(nybles)
+                return False, None
+        return True, nybles
+
     while True:
         try:
-            (nyble, nyble_annotations) = next(hex_nyble_stream)
+            (nyble, nyble_annotations) = get_next_nyble()
         except StopIteration:
-            break
+            break # while True
 
         if nyble_annotations[NY_ANNO_IS_DATA]:
             yield (nyble, nyble_annotations)
         else:
+            def return_first_nyble_as_data():
+                return (nyble, annotate_nyble_as_data(nyble_annotations) )
             try:
-                second_nyble, second_nyble_annotations = next(hex_nyble_stream)
+                second_nyble, second_nyble_annotations = get_next_nyble()
             except StopIteration:
-                yield (nyble, annotate_nyble_as_data(nyble_annotations) )
-            instruction_prefix = nyble + second_nyble
-            if instruction_prefix not in instruction_structure or True:
-                yield (nyble, annotate_nyble_as_data(nyble_annotations))
-                yield (second_nyble,
-                       annotate_nyble_as_data(second_nyble_annotations))
-            else: # remove or True
-                pass
+                yield return_first_nyble_as_data()
+                break # while True
+
+            def return_first_and_second_nyble_as_data():
+                """provides a two element tuple with the first nyble
+re-annotated as data and the second nyble re-annotated as data
+recommended use:
+yield from return_first_and_second_nyble_as_data()
+which is equivilent to
+first, second = return_first_and_second_nyble_as_data()
+yield first
+yield second"""
+                return (
+                    return_first_nyble_as_data(),
+                    (second_nyble,
+                     annotate_nyble_as_data(second_nyble_annotations))
+                    ) # tuple
+
+            instruction_prefix = (nyble + second_nyble).upper()
+            if instruction_prefix not in instruction_structure:
+                yield from return_first_and_second_nyble_as_data()
+            else:
+                instruction_struc_table = instruction_structure[
+                    instruction_prefix]
+
+                result, additional_nybles = try_to_consume_n_nybles(
+                    instruction_struc_table[INSTRUCT_NYBLES_AFT_PREFIX]
+                ) # try_to_consume_n_nybles
+                # if we hit end of file, we treat the two nyble prefix
+                # as data we'll go back to the top of the while loop
+                # try_to_consume_n_nybles will have already put
+                # the ones it did consume into lookahead_buffer
+                if not result:
+                    yield from return_first_and_second_nyble_as_data()
+                else:
+                    additional_nybles_hex = ''.join(
+                        content
+                        for content, additional_nyble_annotations in
+                        additional_nybles
+                        ).upper()
+                    remaining_nybles_lookup_table = instruction_struc_table[
+                        INSTRUCT_SHARED_PREFIX_LOOKUP]
+                    # if the additional nybles
+                    if (additional_nybles_hex not in
+                        remaining_nybles_lookup_table):
+                        yield from return_first_and_second_nyble_as_data()
+                        # put the additional nybles back into our lookahead
+                        # buffer to be consumed by next iteration of while True
+                        lookahead_buffer.extend(additional_nybles)
+                    else:
+                        result, operand_nybles_consumed = \
+                            try_to_consume_n_nybles(
+                                num_nybles_from_register_operands_and_immediate(
+                                    instruction_struc_table)
+                            ) # try_to_consume_n_nybles
+                        if not result:
+                            yield from return_first_and_second_nyble_as_data()
+                            # put the additional nybles back into our lookahead
+                            # buffer to be consumed by next iteration of
+                            # while True
+                            lookahead_buffer.extend(additional_nybles)
+                            lookahead_buffer.extend(operand_nybles_consumed)
+                        else:
+                            yield construct_annotated_instruction(
+                                instruction_structure,
+                                instruction_prefix,
+                                additional_nybles_hex,
+                                operand_nybles_consumed,
+                                first_nyble_annotations=nyble_annotations)
 
 def binary_to_annotated_hex(binary_fileobj):
     # nyble is int when iterating over bytes from hexlify, hence chr(nyble)
@@ -441,22 +594,29 @@ def dissassemble_knight_binary(
 
     AFTER_DATA_CHARS = "'\n"
     last_was_data = False
+    last_was_instruct = False
     for content, annotations in replace_instructions_in_hex_nyble_stream(
             binary_to_annotated_hex(binary_fileobj),
             instruction_structure
             ):
         if annotations[NY_ANNO_IS_DATA]:
-            if ( ( annotations[NY_ANNO_ADDRESS]) % 4 == 0 and
-                 annotations[NY_ANNO_FIRST_NYBLE] ):
-                if annotations[NY_ANNO_ADDRESS]>0:
+            if ( ( ( annotations[NY_ANNO_ADDRESS]) % 4 == 0 and
+                   annotations[NY_ANNO_FIRST_NYBLE] ) or last_was_instruct):
+                if annotations[NY_ANNO_ADDRESS]>0 and not last_was_instruct:
                     output_fileobj.write(AFTER_DATA_CHARS)
                 output_fileobj.write( "'" )
             output_fileobj.write( content )
             last_was_data = True
-        else:
+            last_was_instruct = False
+        else: # if not data, it's an instruction!
             if last_was_data:
                 output_fileobj.write(AFTER_DATA_CHARS)
+
+            output_fileobj.write( content )
+            output_fileobj.write( "\n" )
             last_was_data = False
+            last_was_instruct = True
+
     if last_was_data:
         output_fileobj.write(AFTER_DATA_CHARS)
 
