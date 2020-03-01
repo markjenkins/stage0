@@ -16,7 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with stage0.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import division
+
 from os.path import dirname, join as path_join
+from binascii import hexlify
+from sys import argv, stdout
 
 # The following globals, class and function definitions are copy-pasted
 # from M1.py in https://github.com/markjenkins/knightpies
@@ -385,9 +389,72 @@ def get_knight_instruction_structure_from_file(definitions_file):
         for prefix, instruct_struct_define in INSTRUCTION_STRUCTURE.items()
         }
 
+NY_ANNO_IS_DATA, NY_ANNO_ADDRESS, NY_ANNO_FIRST_NYBLE = range(3)
+
+def annotate_nyble_as_data(nyble_annotations):
+    return (nyble_annotations[0:NY_ANNO_IS_DATA] +
+            (True, ) + # NY_ANNO_IS_DATA
+            nyble_annotations[NY_ANNO_IS_DATA+1:] )
+
+def replace_instructions_in_hex_nyble_stream(
+        hex_nyble_stream, instruction_structure):
+    while True:
+        try:
+            (nyble, nyble_annotations) = next(hex_nyble_stream)
+        except StopIteration:
+            break
+
+        if nyble_annotations[NY_ANNO_IS_DATA]:
+            yield (nyble, nyble_annotations)
+        else:
+            try:
+                second_nyble, second_nyble_annotations = next(hex_nyble_stream)
+            except StopIteration:
+                yield (nyble, annotate_nyble_as_data(nyble_annotations) )
+            instruction_prefix = nyble + second_nyble
+            if instruction_prefix not in instruction_structure or True:
+                yield (nyble, annotate_nyble_as_data(nyble_annotations))
+                yield (second_nyble,
+                       annotate_nyble_as_data(second_nyble_annotations))
+            else: # remove or True
+                pass
+
+def binary_to_annotated_hex(binary_fileobj):
+    # nyble is int when iterating over bytes from hexlify, hence chr(nyble)
+    for i, nyble in enumerate(hexlify(binary_fileobj.read())):
+        yield (chr(nyble).upper(),
+               (False,    # NY_ANNO_IS_DATA
+                i//2,     # NY_ANNO_ADDRESS
+                (i%2==0), # NY_ANNO_FIRST_NYBLE
+               ) # annotation tuple
+        ) # outer tuple
+
+def dissassemble_knight_binary(
+        binary_fileobj,
+        output_fileobj,
+        definitions_file=None,
+        ):
+    if definitions_file==None:
+        definitions_file = get_stage0_knight_defs_filename()
+    instruction_structure = get_knight_instruction_structure_from_file(
+        definitions_file)
+    for content, annotations in replace_instructions_in_hex_nyble_stream(
+            binary_to_annotated_hex(binary_fileobj),
+            instruction_structure
+            ):
+        if annotations[NY_ANNO_IS_DATA]:
+            if ( ( annotations[NY_ANNO_ADDRESS]) % 4 == 0 and
+                 annotations[NY_ANNO_FIRST_NYBLE] and
+                 annotations[NY_ANNO_ADDRESS]>0
+            ):
+                output_fileobj.write('\n')
+            output_fileobj.write( content )
+    output_fileobj.write('\n')
+
+
 def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
 
 if __name__ == "__main__":
-    STAGE0_KNIGHT_DEFS = get_stage0_knight_defs_filename()
-    print(get_knight_instruction_structure_from_file(STAGE0_KNIGHT_DEFS))
+    with open(argv[1], 'rb') as f:
+        dissassemble_knight_binary(f, stdout)
