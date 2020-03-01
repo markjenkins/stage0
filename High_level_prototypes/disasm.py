@@ -337,10 +337,14 @@ def get_macro_definitions_from_file(definitions_file):
     return filter_M1_py_symbol_table_to_simple_dict(symbols)
 
 def get_knight_instruction_definititions_from_file(definitions_file):
-    return filter_unwanted_symbols(
+    filtered_symbols = filter_unwanted_symbols(
         get_macro_definitions_from_file(definitions_file),
         set( (tuple(KNIGHT_REGISTER_SYMBOLS.keys()) + ('NULL',)) )
         )
+    return {
+        key: value.upper() # ensure instruction definitions are upper case hex
+        for key, value in filtered_symbols.items()
+        }
 
 def remove_prefix_from_instruct_hex(instruct_hex):
     return instruct_hex[INSTRUCTION_PREFIX_LEN:]
