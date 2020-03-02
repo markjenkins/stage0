@@ -500,9 +500,6 @@ def replace_instructions_in_hex_nyble_stream(
     # we thought they were
     lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
 
-    def return_annotated_nybles_to_look_ahead(annotated_nybles):
-        lookahead_buffer.return_iterables_to_front(annotated_nybles)
-
     # the act of getting the next annotated nyble is first to look at the
     # lookahead_buffer for ones we oops on, otherwise pull from hex_nyble_stream
     # which could raise StopIteration if we reach end of file / stream
@@ -517,7 +514,7 @@ def replace_instructions_in_hex_nyble_stream(
                 nybles.append(get_next_nyble())
             # if we hit end of file, put the nybles back and report failure
             except StopIteration:
-                return_annotated_nybles_to_look_ahead(nybles)
+                lookahead_buffer.return_iterables_to_front(nybles)
                 return False, None
         return True, nybles
 
@@ -583,7 +580,8 @@ yield second"""
                         yield from return_first_and_second_nyble_as_data()
                         # put the additional nybles back into our lookahead
                         # buffer to be consumed by next iteration of while True
-                        return_annotated_nybles_to_look_ahead(additional_nybles)
+                        lookahead_buffer.return_iterables_to_front(
+                            additional_nybles)
                     else:
                         result, operand_nybles_consumed = \
                             try_to_consume_n_nybles(
@@ -595,10 +593,9 @@ yield second"""
                             # put the additional nybles back into our lookahead
                             # buffer to be consumed by next iteration of
                             # while True
-                            return_annotated_nybles_to_look_ahead(
+                            lookahead_buffer.return_iterables_to_front(
+                                additional_nybles,
                                 operand_nybles_consumed)
-                            return_annotated_nybles_to_look_ahead(
-                                additional_nybles)
                         else:
                             yield construct_annotated_instruction(
                                 instruction_structure,
