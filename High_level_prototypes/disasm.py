@@ -308,6 +308,35 @@ class InvalidInstructionDefinitionException(Exception):
             "definition for %s, %s %s" % (
                 instruct_name, instruct_hex, msg))
 
+class LookaheadBuffer(object):
+    def __init__(self, iterator):
+        self.iterator = iterator
+        self.buffer = deque()
+
+    def grow_buffer(self, n):
+        if len(self.buffer) >= n:
+            return True
+        else:
+            while len(self.buffer) < n:
+                try:
+                    self.buffer.append( next(self.iterator) )
+                except StopIteration:
+                    break
+            return len(self.buffer) >= n
+
+    def next_n(self, n=1, grow=True):
+        if grow:
+            self.grow_buffer(n)
+        for i in range( min(n, len(self.buffer) ) ):
+            yield self.buffer.popleft()
+
+    def __len__(self):
+        return len(self.buffer)
+
+    def return_iterables_to_front(self, *iters):
+        for iterable in reversed(iters):
+            self.buffer.extendleft(reversed(iterable))
+
 def num_nybles_from_immediate(lookup_struct):
     return (0 if None == lookup_struct[INSTRUCT_IMMEDIATE_NYBLE_LEN]
             else lookup_struct[INSTRUCT_IMMEDIATE_NYBLE_LEN])
@@ -469,23 +498,17 @@ def replace_instructions_in_hex_nyble_stream(
     # tossed into this lookahead buffer [first in first out /FIFO with
     # append() and popleft() ] if it turns out that oops, they were not what
     # we thought they were
-    lookahead_buffer = deque()
+    lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
 
     def return_annotated_nybles_to_look_ahead(annotated_nybles):
-        lookahead_buffer.extendleft(reversed(annotated_nybles))
-
-    def get_next_nyble_from_look_ahead():
-        return lookahead_buffer.popleft()
+        lookahead_buffer.return_iterables_to_front(annotated_nybles)
 
     # the act of getting the next annotated nyble is first to look at the
     # lookahead_buffer for ones we oops on, otherwise pull from hex_nyble_stream
     # which could raise StopIteration if we reach end of file / stream
     def get_next_nyble():
-        if len(lookahead_buffer)>0:
-            return get_next_nyble_from_look_ahead()
-        else:
-            # raise StopIteration
-            return next(hex_nyble_stream)
+        # raise StopIteration
+        return next(iter(lookahead_buffer.next_n(n=1, grow=True)))
 
     def try_to_consume_n_nybles(n):
         nybles = []
