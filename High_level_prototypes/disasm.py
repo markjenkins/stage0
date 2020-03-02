@@ -328,7 +328,10 @@ class LookaheadBuffer(object):
         if grow:
             self.grow_buffer(n)
         for i in range( min(n, len(self.buffer) ) ):
-            yield self.buffer.popleft()
+            try:
+                yield self.buffer.popleft()
+            except IndexError:
+                break
 
     def __len__(self):
         return len(self.buffer)
@@ -508,15 +511,11 @@ def replace_instructions_in_hex_nyble_stream(
         return next(iter(lookahead_buffer.next_n(n=1, grow=True)))
 
     def try_to_consume_n_nybles(n):
-        nybles = []
-        for i in range(n):
-            try:
-                nybles.append(get_next_nyble())
-            # if we hit end of file, put the nybles back and report failure
-            except StopIteration:
-                lookahead_buffer.return_iterables_to_front(nybles)
-                return False, None
-        return True, nybles
+        success = lookahead_buffer.grow_buffer(n)
+        if success:
+            return True, tuple(lookahead_buffer.next_n(n, grow=False))
+        else:
+            return False, None
 
     while True:
         try:
