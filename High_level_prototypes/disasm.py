@@ -333,6 +333,21 @@ class LookaheadBuffer(object):
             except IndexError:
                 break
 
+    def __next__(self):
+        # support python's builtin next()
+        #
+        # raises StopIeteration if there is nothing left or a default value
+        # if one additional argument is provided
+        # checking for len(args) == 1 ensures we add at most one extra
+        # argumet to python's builtin next()
+        #
+        # we do it this way instead of self.buffer.popleft() to ensure
+        # StopIteration is thrown
+        #
+        # cool fact, callers (who are using builtin next() ) can
+        # provide a default value
+        return next(iter(self.next_n(n=1, grow=True)))
+
     def __len__(self):
         return len(self.buffer)
 
@@ -507,8 +522,7 @@ def replace_instructions_in_hex_nyble_stream(
     # lookahead_buffer for ones we oops on, otherwise pull from hex_nyble_stream
     # which could raise StopIteration if we reach end of file / stream
     def get_next_nyble():
-        # raise StopIteration
-        return next(iter(lookahead_buffer.next_n(n=1, grow=True)))
+        return next(lookahead_buffer)
 
     def try_to_consume_n_nybles(n):
         success = lookahead_buffer.grow_buffer(n)
