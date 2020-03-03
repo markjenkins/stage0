@@ -547,6 +547,7 @@ def replace_instructions_in_hex_nyble_stream(
 
     minimal_instruction_size = smallest_instruction_nybles(
         instruction_structure)
+    assert( INSTRUCTION_PREFIX_LEN < minimal_instruction_size )
 
     while True:
         if not lookahead_buffer.grow_buffer(minimal_instruction_size):
@@ -557,21 +558,25 @@ def replace_instructions_in_hex_nyble_stream(
                 )
             break
 
-        try:
-            (nyble, nyble_annotations) = next(lookahead_buffer)
-        except StopIteration:
-            break # while True
+        prefix_nybles_w_annotations = tuple(
+            lookahead_buffer.next_n(INSTRUCTION_PREFIX_LEN) )
+        assert( INSTRUCTION_PREFIX_LEN == 2)
+        (nyble, nyble_annotations) = prefix_nybles_w_annotations[0]
+        (second_nyble, second_nyble_annotations) = \
+            prefix_nybles_w_annotations[1]
+        assert(len(prefix_nybles_w_annotations)==2)
 
-        if nyble_annotations[NY_ANNO_IS_DATA]:
-            yield (nyble, nyble_annotations)
+        # if any of the prefix nybles are marked as data, they're both
+        # treated as data
+        if any( ny_annotations[NY_ANNO_IS_DATA]
+                for nydata, ny_annotations in prefix_nybles_w_annotations ):
+            yield from (
+                (nyble, annotate_nyble_as_data(nyble_annotations) )
+                for nyble, nyble_annotations in prefix_nybles_w_annotations
+                )
         else:
             def return_first_nyble_as_data():
                 return (nyble, annotate_nyble_as_data(nyble_annotations) )
-            try:
-                second_nyble, second_nyble_annotations = next(lookahead_buffer)
-            except StopIteration:
-                yield return_first_nyble_as_data()
-                break # while True
 
             def return_first_and_second_nyble_as_data():
                 """provides a two element tuple with the first nyble
