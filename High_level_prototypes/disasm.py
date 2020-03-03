@@ -518,12 +518,6 @@ def replace_instructions_in_hex_nyble_stream(
     # we thought they were
     lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
 
-    # the act of getting the next annotated nyble is first to look at the
-    # lookahead_buffer for ones we oops on, otherwise pull from hex_nyble_stream
-    # which could raise StopIteration if we reach end of file / stream
-    def get_next_nyble():
-        return next(lookahead_buffer)
-
     def try_to_consume_n_nybles(n):
         success = lookahead_buffer.grow_buffer(n)
         if success:
@@ -533,7 +527,7 @@ def replace_instructions_in_hex_nyble_stream(
 
     while True:
         try:
-            (nyble, nyble_annotations) = get_next_nyble()
+            (nyble, nyble_annotations) = next(lookahead_buffer)
         except StopIteration:
             break # while True
 
@@ -543,7 +537,7 @@ def replace_instructions_in_hex_nyble_stream(
             def return_first_nyble_as_data():
                 return (nyble, annotate_nyble_as_data(nyble_annotations) )
             try:
-                second_nyble, second_nyble_annotations = get_next_nyble()
+                second_nyble, second_nyble_annotations = next(lookahead_buffer)
             except StopIteration:
                 yield return_first_nyble_as_data()
                 break # while True
