@@ -365,6 +365,19 @@ def num_nybles_from_register_operands_and_immediate(lookup_struct):
         num_nybles_from_immediate(lookup_struct)
     ) # end addition expression
 
+def get_instruction_opcode_len(prefix, instruct_struct):
+    return (
+        INSTRUCTION_PREFIX_LEN +
+        instruct_struct[INSTRUCT_NYBLES_AFT_PREFIX]
+        )
+
+def smallest_instruction_nybles(instruct_struct):
+    return min(
+        (get_instruction_opcode_len(prefix, instructfamily) +
+         num_nybles_from_register_operands_and_immediate(instructfamily)
+        )
+        for prefix, instructfamily in instruct_struct.items() )
+
 def filter_M1_py_symbol_table_to_simple_dict(symbols):
     return {
         macro_name: macro_detailed_definition[TOK_EXPR]
@@ -425,7 +438,8 @@ def expand_instruct_struct_define_if_valid(
             ,) # end singleton tuple
     ) # end tuple appending expression
 
-def get_knight_instruction_structure_from_file(definitions_file):
+def get_knight_instruction_structure_from_file(
+        definitions_file, strict_size_assert=False):
     symbols = get_knight_instruction_definititions_from_file(definitions_file)
     for symname, symvalue in symbols.items():
         if symvalue[0:INSTRUCTION_PREFIX_LEN] not in INSTRUCTION_STRUCTURE:
@@ -441,7 +455,7 @@ def get_knight_instruction_structure_from_file(definitions_file):
         for prefix in INSTRUCTION_STRUCTURE.keys()
         }
 
-    return {
+    finished_instruction_struct = {
         prefix:
         expand_instruct_struct_define_if_valid(
             prefix,
@@ -450,6 +464,16 @@ def get_knight_instruction_structure_from_file(definitions_file):
         ) # expand_instruct_struct_define_if_valid
         for prefix, instruct_struct_define in INSTRUCTION_STRUCTURE.items()
         }
+    if strict_size_assert:
+        assert(
+            smallest_instruction_nybles(finished_instruction_struct) ==
+            max( len(x) for x in symbols.values()) )
+    else:
+        assert(
+            smallest_instruction_nybles(finished_instruction_struct) <=
+            max( len(x) for x in symbols.values()) )
+
+    return finished_instruction_struct
 
 NY_ANNO_IS_DATA, NY_ANNO_ADDRESS, NY_ANNO_FIRST_NYBLE = range(3)
 
@@ -626,10 +650,16 @@ def dissassemble_knight_binary(
         output_fileobj,
         definitions_file=None,
         ):
-    if definitions_file==None:
+    builtin_definitions = definitions_file==None
+
+    if builtin_definitions:
         definitions_file = get_stage0_knight_defs_filename()
     instruction_structure = get_knight_instruction_structure_from_file(
-        definitions_file)
+        definitions_file, strict_size_assert=builtin_definitions)
+
+    # we know the smallest
+    if builtin_definitions:
+        assert( 8 == smallest_instruction_nybles(instruction_structure))
 
     AFTER_DATA_CHARS = "'\n"
     last_was_data = False
