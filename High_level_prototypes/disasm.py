@@ -333,6 +333,9 @@ class LookaheadBuffer(object):
             except IndexError:
                 break
 
+    def __iter__(self):
+        return iter(self.buffer)
+
     def __next__(self):
         # support python's builtin next()
         #
@@ -542,7 +545,18 @@ def replace_instructions_in_hex_nyble_stream(
     # we thought they were
     lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
 
+    minimal_instruction_size = smallest_instruction_nybles(
+        instruction_structure)
+
     while True:
+        if not lookahead_buffer.grow_buffer(minimal_instruction_size):
+            assert( len(lookahead_buffer) < minimal_instruction_size )
+            yield from (
+                (nyble, annotate_nyble_as_data(nyble_annotations) )
+                for nyble, nyble_annotations in lookahead_buffer
+                )
+            break
+
         try:
             (nyble, nyble_annotations) = next(lookahead_buffer)
         except StopIteration:
