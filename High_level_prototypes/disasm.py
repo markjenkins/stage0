@@ -542,13 +542,6 @@ def replace_instructions_in_hex_nyble_stream(
     # we thought they were
     lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
 
-    def try_to_consume_n_nybles(n):
-        success = lookahead_buffer.grow_buffer(n)
-        if success:
-            return True, tuple(lookahead_buffer.next_n(n, grow=False))
-        else:
-            return False, None
-
     while True:
         try:
             (nyble, nyble_annotations) = next(lookahead_buffer)
@@ -588,16 +581,17 @@ yield second"""
                 instruction_struc_table = instruction_structure[
                     instruction_prefix]
 
-                result, additional_nybles = try_to_consume_n_nybles(
-                    instruction_struc_table[INSTRUCT_NYBLES_AFT_PREFIX]
-                ) # try_to_consume_n_nybles
+                result = lookahead_buffer.grow_buffer(
+                    instruction_struc_table[INSTRUCT_NYBLES_AFT_PREFIX])
                 # if we hit end of file, we treat the two nyble prefix
                 # as data we'll go back to the top of the while loop
-                # try_to_consume_n_nybles will have already put
-                # the ones it did consume into lookahead_buffer
+                # the nybles still available will be in lookahead_buffer
                 if not result:
                     yield from return_first_and_second_nyble_as_data()
                 else:
+                    additional_nybles = tuple(lookahead_buffer.next_n(
+                        instruction_struc_table[INSTRUCT_NYBLES_AFT_PREFIX],
+                        grow=False) )
                     additional_nybles_hex = ''.join(
                         content
                         for content, additional_nyble_annotations in
@@ -614,11 +608,10 @@ yield second"""
                         lookahead_buffer.return_iterables_to_front(
                             additional_nybles)
                     else:
-                        result, operand_nybles_consumed = \
-                            try_to_consume_n_nybles(
-                                num_nybles_from_register_operands_and_immediate(
-                                    instruction_struc_table)
-                            ) # try_to_consume_n_nybles
+                        operand_len = \
+                            num_nybles_from_register_operands_and_immediate(
+                                instruction_struc_table)
+                        result = lookahead_buffer.grow_buffer(operand_len)
                         if not result:
                             yield from return_first_and_second_nyble_as_data()
                             # put the additional nybles back into our lookahead
@@ -626,8 +619,11 @@ yield second"""
                             # while True
                             lookahead_buffer.return_iterables_to_front(
                                 additional_nybles,
-                                operand_nybles_consumed)
+                                )
                         else:
+                            operand_nybles_consumed = tuple(
+                                lookahead_buffer.next_n(
+                                    operand_len) )
                             yield construct_annotated_instruction(
                                 instruction_structure,
                                 instruction_prefix,
