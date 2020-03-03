@@ -485,6 +485,12 @@ def annotate_nyble_as_data(nyble_annotations):
             (True, ) + # NY_ANNO_IS_DATA
             nyble_annotations[NY_ANNO_IS_DATA+1:] )
 
+def multiple_annotated_nybles_as_data(annotated_nybles):
+    return (
+        (x, annotate_nyble_as_data(y))
+        for x,y in annotated_nybles
+        )
+
 # this is a helper called by replace_instructions_in_hex_nyble_stream
 # all asserts assume that context
 def construct_annotated_instruction(
@@ -552,10 +558,7 @@ def replace_instructions_in_hex_nyble_stream(
     while True:
         if not lookahead_buffer.grow_buffer(minimal_instruction_size):
             assert( len(lookahead_buffer) < minimal_instruction_size )
-            yield from (
-                (nyble, annotate_nyble_as_data(nyble_annotations) )
-                for nyble, nyble_annotations in lookahead_buffer
-                )
+            yield from multiple_annotated_nybles_as_data(lookahead_buffer)
             break
 
         prefix_nybles_w_annotations = tuple(
@@ -570,32 +573,13 @@ def replace_instructions_in_hex_nyble_stream(
         # treated as data
         if any( ny_annotations[NY_ANNO_IS_DATA]
                 for nydata, ny_annotations in prefix_nybles_w_annotations ):
-            yield from (
-                (nyble, annotate_nyble_as_data(nyble_annotations) )
-                for nyble, nyble_annotations in prefix_nybles_w_annotations
-                )
+            yield from multiple_annotated_nybles_as_data(
+                prefix_nybles_w_annotations)
         else:
-            def return_first_nyble_as_data():
-                return (nyble, annotate_nyble_as_data(nyble_annotations) )
-
-            def return_first_and_second_nyble_as_data():
-                """provides a two element tuple with the first nyble
-re-annotated as data and the second nyble re-annotated as data
-recommended use:
-yield from return_first_and_second_nyble_as_data()
-which is equivilent to
-first, second = return_first_and_second_nyble_as_data()
-yield first
-yield second"""
-                return (
-                    return_first_nyble_as_data(),
-                    (second_nyble,
-                     annotate_nyble_as_data(second_nyble_annotations))
-                    ) # tuple
-
             instruction_prefix = (nyble + second_nyble).upper()
             if instruction_prefix not in instruction_structure:
-                yield from return_first_and_second_nyble_as_data()
+                yield from multiple_annotated_nybles_as_data(
+                    prefix_nybles_w_annotations)
             else:
                 instruction_struc_table = instruction_structure[
                     instruction_prefix]
@@ -606,7 +590,8 @@ yield second"""
                 # as data we'll go back to the top of the while loop
                 # the nybles still available will be in lookahead_buffer
                 if not result:
-                    yield from return_first_and_second_nyble_as_data()
+                    yield from multiple_annotated_nybles_as_data(
+                        prefix_nybles_w_annotations)
                 else:
                     additional_nybles = tuple(lookahead_buffer.next_n(
                         instruction_struc_table[INSTRUCT_NYBLES_AFT_PREFIX],
@@ -621,7 +606,8 @@ yield second"""
                     # if the additional nybles
                     if (additional_nybles_hex not in
                         remaining_nybles_lookup_table):
-                        yield from return_first_and_second_nyble_as_data()
+                        yield from multiple_annotated_nybles_as_data(
+                            prefix_nybles_w_annotations)
                         # put the additional nybles back into our lookahead
                         # buffer to be consumed by next iteration of while True
                         lookahead_buffer.return_iterables_to_front(
@@ -632,7 +618,8 @@ yield second"""
                                 instruction_struc_table)
                         result = lookahead_buffer.grow_buffer(operand_len)
                         if not result:
-                            yield from return_first_and_second_nyble_as_data()
+                            yield from multiple_annotated_nybles_as_data(
+                                prefix_nybles_w_annotations)
                             # put the additional nybles back into our lookahead
                             # buffer to be consumed by next iteration of
                             # while True
