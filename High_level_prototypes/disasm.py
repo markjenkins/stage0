@@ -324,9 +324,13 @@ class LookaheadBuffer(object):
                     break
             return len(self.buffer) >= n
 
-    def next_n(self, n=1, grow=True):
+    def next_n(self, n=1, grow=True, raise_if_too_small=True):
         if grow:
             self.grow_buffer(n)
+        elif raise_if_too_small and len(self.buffer) < n:
+            raise Exception(
+                "LookaheadBuffer too small, growth not allowed "
+                "and error checking enabled")
         for i in range( min(n, len(self.buffer) ) ):
             try:
                 yield self.buffer.popleft()
