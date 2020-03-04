@@ -563,11 +563,6 @@ def replace_instructions_in_hex_nyble_stream(
 
         prefix_nybles_w_annotations = tuple(
             lookahead_buffer.next_n(INSTRUCTION_PREFIX_LEN) )
-        assert( INSTRUCTION_PREFIX_LEN == 2)
-        (nyble, nyble_annotations) = prefix_nybles_w_annotations[0]
-        (second_nyble, second_nyble_annotations) = \
-            prefix_nybles_w_annotations[1]
-        assert(len(prefix_nybles_w_annotations)==2)
 
         # if any of the prefix nybles are marked as data, they're both
         # treated as data
@@ -576,7 +571,11 @@ def replace_instructions_in_hex_nyble_stream(
             yield from multiple_annotated_nybles_as_data(
                 prefix_nybles_w_annotations)
         else:
-            instruction_prefix = (nyble + second_nyble).upper()
+            instruction_prefix = \
+                ''.join(
+                    nyble
+                    for nyble, nyble_annotations in prefix_nybles_w_annotations
+                ).upper()
             if instruction_prefix not in instruction_structure:
                 yield from multiple_annotated_nybles_as_data(
                     prefix_nybles_w_annotations)
@@ -635,7 +634,8 @@ def replace_instructions_in_hex_nyble_stream(
                                 instruction_prefix,
                                 additional_nybles_hex,
                                 operand_nybles_consumed,
-                                first_nyble_annotations=nyble_annotations)
+                                first_nyble_annotations =
+                                  prefix_nybles_w_annotations[0][1] )
 
 def binary_to_annotated_hex(binary_fileobj):
     # nyble is int when iterating over bytes from hexlify, hence chr(nyble)
