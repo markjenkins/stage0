@@ -574,8 +574,8 @@ def replace_instructions_in_hex_nyble_stream(
             yield from multiple_annotated_nybles_as_data(lookahead_buffer)
             break
 
-        prefix_nybles_w_annotations = tuple(
-            lookahead_buffer.next_n(INSTRUCTION_PREFIX_LEN, grow=False) )
+        prefix_nybles_w_annotations = lookahead_buffer.next_n(
+            INSTRUCTION_PREFIX_LEN, grow=False)
 
         # if any of the prefix nybles are marked as data, they're both
         # treated as data
@@ -611,8 +611,8 @@ def replace_instructions_in_hex_nyble_stream(
                     yield from multiple_annotated_nybles_as_data(
                         prefix_nybles_w_annotations)
                 else:
-                    rest_of_opcode_nybles = tuple(lookahead_buffer.next_n(
-                        rest_of_opcode_len, grow=False))
+                    rest_of_opcode_nybles = lookahead_buffer.next_n(
+                        rest_of_opcode_len, grow=False)
 
                     additional_nybles_hex = ''.join(
                         content
@@ -638,8 +638,8 @@ def replace_instructions_in_hex_nyble_stream(
                         # already did a grow_buffer operation with
                         # both the remainder of opcode length + operand length
                         # and we checked the result
-                        operand_nybles_consumed = tuple(lookahead_buffer.next_n(
-                            operand_len, grow=False))
+                        operand_nybles_consumed = lookahead_buffer.next_n(
+                            operand_len, grow=False)
                         yield construct_annotated_instruction(
                             instruction_structure,
                             instruction_prefix,
