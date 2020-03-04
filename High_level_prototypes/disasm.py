@@ -368,10 +368,13 @@ def num_nybles_from_register_operands_and_immediate(lookup_struct):
         num_nybles_from_immediate(lookup_struct)
     ) # end addition expression
 
+def get_instruction_opcode_len_after_prefix(lookup_struct):
+    return lookup_struct[INSTRUCT_NYBLES_AFT_PREFIX]
+
 def get_instruction_opcode_len(instruct_struct):
     return (
         INSTRUCTION_PREFIX_LEN +
-        instruct_struct[INSTRUCT_NYBLES_AFT_PREFIX]
+        get_instruction_opcode_len_after_prefix(instruct_struct)
         )
 
 def smallest_instruction_nybles(instruct_struct):
