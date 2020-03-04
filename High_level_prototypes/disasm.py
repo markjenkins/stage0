@@ -331,14 +331,20 @@ class LookaheadBuffer(object):
             raise Exception(
                 "LookaheadBuffer too small, growth not allowed "
                 "and error checking enabled")
-        for i in range( min(n, len(self.buffer) ) ):
-            try:
-                yield self.buffer.popleft()
-            except IndexError:
-                break
+
+        # important that we not return an iterator because
+        # the user may subsequently call return_iterables_to_front()
+        return tuple(
+            self.buffer.popleft()
+            for i in range( min(n, len(self.buffer) ) ) )
 
     def __iter__(self):
-        return iter(self.buffer)
+        # important that we make this based on a copy in case the user calls
+        # return_iterables_to_front()
+        return iter(self.as_tuple())
+
+    def as_tuple(self):
+        return tuple(self.buffer)
 
     def __next__(self):
         # support python's builtin next()
@@ -569,7 +575,7 @@ def replace_instructions_in_hex_nyble_stream(
             break
 
         prefix_nybles_w_annotations = tuple(
-            lookahead_buffer.next_n(INSTRUCTION_PREFIX_LEN) )
+            lookahead_buffer.next_n(INSTRUCTION_PREFIX_LEN, grow=False) )
 
         # if any of the prefix nybles are marked as data, they're both
         # treated as data
