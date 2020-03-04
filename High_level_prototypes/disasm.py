@@ -346,6 +346,18 @@ class LookaheadBuffer(object):
     def as_tuple(self):
         return tuple(self.buffer)
 
+    def clear(self, as_iter=False, as_tuple=False):
+        if as_iter:
+            old_buffer = self.buffer
+            self.buffer = deque()
+            return iter(old_buffer)
+        elif as_tuple:
+            return_tuple = tuple(self.buffer)
+            self.buffer.clear()
+            return return_tuple
+        else:
+            self.buffer.clear()
+
     def __next__(self):
         # support python's builtin next()
         #
@@ -571,7 +583,8 @@ def replace_instructions_in_hex_nyble_stream(
     while True:
         if not lookahead_buffer.grow_buffer(minimal_instruction_size):
             assert( len(lookahead_buffer) < minimal_instruction_size )
-            yield from multiple_annotated_nybles_as_data(lookahead_buffer)
+            yield from multiple_annotated_nybles_as_data(
+                lookahead_buffer.clear(as_iter=True))
             break
 
         prefix_nybles_w_annotations = lookahead_buffer.next_n(
