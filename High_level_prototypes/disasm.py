@@ -627,7 +627,7 @@ def replace_instructions_in_hex_nyble_stream(
                     rest_of_opcode_nybles = lookahead_buffer.next_n(
                         rest_of_opcode_len, grow=False)
 
-                    additional_nybles_hex = ''.join(
+                    rest_of_opcode_nybles_hex = ''.join(
                         content
                         for content, additional_nyble_annotations in
                         rest_of_opcode_nybles
@@ -635,7 +635,7 @@ def replace_instructions_in_hex_nyble_stream(
                     remaining_nybles_lookup_table = instruction_struc_table[
                         INSTRUCT_SHARED_PREFIX_LOOKUP]
                     # if the rest of the opcode isn't recognizable
-                    if (additional_nybles_hex not in
+                    if (rest_of_opcode_nybles_hex not in
                         remaining_nybles_lookup_table):
                         # treat the prefix as data
                         yield from multiple_annotated_nybles_as_data(
@@ -656,7 +656,7 @@ def replace_instructions_in_hex_nyble_stream(
                         yield construct_annotated_instruction(
                             instruction_structure,
                             instruction_prefix,
-                            additional_nybles_hex,
+                            rest_of_opcode_nybles_hex,
                             operand_nybles_consumed,
                             first_nyble_annotations =
                               prefix_nybles_w_annotations[0][1] )
