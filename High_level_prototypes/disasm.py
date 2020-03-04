@@ -586,8 +586,14 @@ def replace_instructions_in_hex_nyble_stream(
                 instruction_struc_table = instruction_structure[
                     instruction_prefix]
 
+                rest_of_opcode_len = get_instruction_opcode_len_after_prefix(
+                    instruction_struc_table)
+                operand_len = num_nybles_from_register_operands_and_immediate(
+                    instruction_struc_table)
+
                 result = lookahead_buffer.grow_buffer(
-                    instruction_struc_table[INSTRUCT_NYBLES_AFT_PREFIX])
+                    rest_of_opcode_len + operand_len)
+
                 # if we hit end of file, we treat the two nyble prefix
                 # as data we'll go back to the top of the while loop
                 # the nybles still available will be in lookahead_buffer
@@ -595,50 +601,42 @@ def replace_instructions_in_hex_nyble_stream(
                     yield from multiple_annotated_nybles_as_data(
                         prefix_nybles_w_annotations)
                 else:
-                    additional_nybles = tuple(lookahead_buffer.next_n(
-                        instruction_struc_table[INSTRUCT_NYBLES_AFT_PREFIX],
-                        grow=False) )
+                    rest_of_opcode_nybles = tuple(lookahead_buffer.next_n(
+                        rest_of_opcode_len, grow=False))
+
                     additional_nybles_hex = ''.join(
                         content
                         for content, additional_nyble_annotations in
-                        additional_nybles
+                        rest_of_opcode_nybles
                         ).upper()
                     remaining_nybles_lookup_table = instruction_struc_table[
                         INSTRUCT_SHARED_PREFIX_LOOKUP]
-                    # if the additional nybles
+                    # if the rest of the opcode isn't recognizable
                     if (additional_nybles_hex not in
                         remaining_nybles_lookup_table):
+                        # treat the prefix as data
                         yield from multiple_annotated_nybles_as_data(
                             prefix_nybles_w_annotations)
-                        # put the additional nybles back into our lookahead
-                        # buffer to be consumed by next iteration of while True
+                        # put the rest of opcode nybles back into the
+                        # front of our lookahead buffer to be consumed by
+                        # next iteration of while True
                         lookahead_buffer.return_iterables_to_front(
-                            additional_nybles)
+                            rest_of_opcode_nybles)
                     else:
-                        operand_len = \
-                            num_nybles_from_register_operands_and_immediate(
-                                instruction_struc_table)
-                        result = lookahead_buffer.grow_buffer(operand_len)
-                        if not result:
-                            yield from multiple_annotated_nybles_as_data(
-                                prefix_nybles_w_annotations)
-                            # put the additional nybles back into our lookahead
-                            # buffer to be consumed by next iteration of
-                            # while True
-                            lookahead_buffer.return_iterables_to_front(
-                                additional_nybles,
-                                )
-                        else:
-                            operand_nybles_consumed = tuple(
-                                lookahead_buffer.next_n(
-                                    operand_len) )
-                            yield construct_annotated_instruction(
-                                instruction_structure,
-                                instruction_prefix,
-                                additional_nybles_hex,
-                                operand_nybles_consumed,
-                                first_nyble_annotations =
-                                  prefix_nybles_w_annotations[0][1] )
+                        # no need to grow the buffer to match this read
+                        # or to check operand_len nybles are available as we
+                        # already did a grow_buffer operation with
+                        # both the remainder of opcode length + operand length
+                        # and we checked the result
+                        operand_nybles_consumed = tuple(lookahead_buffer.next_n(
+                            operand_len, grow=False))
+                        yield construct_annotated_instruction(
+                            instruction_structure,
+                            instruction_prefix,
+                            additional_nybles_hex,
+                            operand_nybles_consumed,
+                            first_nyble_annotations =
+                              prefix_nybles_w_annotations[0][1] )
 
 def binary_to_annotated_hex(binary_fileobj):
     # nyble is int when iterating over bytes from hexlify, hence chr(nyble)
