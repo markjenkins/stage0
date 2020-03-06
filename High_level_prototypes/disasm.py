@@ -311,10 +311,10 @@ class InvalidInstructionDefinitionException(Exception):
 
 class LookaheadBuffer(object):
     def __init__(self, iterator):
-        self.iterator = iterator
-        self.buffer = deque()
+        self.__iterator = iterator
+        self.__buffer = deque()
 
-        # anyone LookaheadBuffer internal calling next() on self.iterator
+        # anyone LookaheadBuffer internal calling next() on self.__iterator
         # is responsible for catching StopIteration and setting this
         # So far this is __next__, grow_buffer, and grow_by_predicate
         self.__hit_end = False
@@ -325,22 +325,22 @@ class LookaheadBuffer(object):
         check unless it's clear from the context, even then, documenting
         LookaheaddBuffer.__len__()==0 is a good idea
         """
-        # anyone LookaheadBuffer internal calling next() on self.iterator
+        # anyone LookaheadBuffer internal calling next() on self.__iterator
         # is responsible for catching StopIteration and setting this
         # So far this is __next__, grow_buffer, and grow_by_predicate
         return self.__hit_end
 
     def grow_buffer(self, n):
-        if len(self.buffer) >= n:
+        if len(self.__buffer) >= n:
             return True
         else:
-            while len(self.buffer) < n:
+            while len(self.__buffer) < n:
                 try:
-                    self.buffer.append( next(self.iterator) )
+                    self.__buffer.append( next(self.__iterator) )
                 except StopIteration:
                     self.__hit_end = True
                     break
-            return len(self.buffer) >= n
+            return len(self.__buffer) >= n
 
     def grow_by_predicate(self, predicate, n=None,
                           raise_if_not_clearfirst=True):
@@ -395,8 +395,8 @@ class LookaheadBuffer(object):
 
         for i in (count(0) if n==None else range(n)):
             try:
-                next_in = next(self.iterator)
-                self.buffer.append( next_in )
+                next_in = next(self.__iterator)
+                self.__buffer.append( next_in )
             except StopIteration:
                 self.__hit_end  = True
                 pred_last = None
@@ -419,7 +419,7 @@ class LookaheadBuffer(object):
     def next_n(self, n=1, grow=True, raise_if_too_small=True):
         if grow:
             self.grow_buffer(n)
-        elif raise_if_too_small and len(self.buffer) < n:
+        elif raise_if_too_small and len(self.__buffer) < n:
             raise Exception(
                 "LookaheadBuffer too small, growth not allowed "
                 "and error checking enabled")
@@ -427,8 +427,8 @@ class LookaheadBuffer(object):
         # important that we not return an iterator because
         # the user may subsequently call return_iterables_to_front()
         return tuple(
-            self.buffer.popleft()
-            for i in range( min(n, len(self.buffer) ) ) )
+            self.__buffer.popleft()
+            for i in range( min(n, len(self.__buffer) ) ) )
 
     def __iter__(self):
         # important that we make this based on a copy in case the user calls
@@ -436,19 +436,19 @@ class LookaheadBuffer(object):
         return iter(self.as_tuple())
 
     def as_tuple(self):
-        return tuple(self.buffer)
+        return tuple(self.__buffer)
 
     def clear(self, as_iter=False, as_tuple=False):
         if as_iter:
-            old_buffer = self.buffer
-            self.buffer = deque()
+            old_buffer = self.__buffer
+            self.__buffer = deque()
             return iter(old_buffer)
         elif as_tuple:
-            return_tuple = tuple(self.buffer)
-            self.buffer.clear()
+            return_tuple = tuple(self.__buffer)
+            self.__buffer.clear()
             return return_tuple
         else:
-            self.buffer.clear()
+            self.__buffer.clear()
 
     def __next__(self):
         # support python's builtin next()
@@ -458,7 +458,7 @@ class LookaheadBuffer(object):
         # checking for len(args) == 1 ensures we add at most one extra
         # argumet to python's builtin next()
         #
-        # we do it this way instead of self.buffer.popleft() to ensure
+        # we do it this way instead of self.__buffer.popleft() to ensure
         # StopIteration is thrown
         #
         # cool fact, callers (who are using builtin next() ) can
@@ -472,11 +472,11 @@ class LookaheadBuffer(object):
             return next_val
 
     def __len__(self):
-        return len(self.buffer)
+        return len(self.__buffer)
 
     def return_iterables_to_front(self, *iters):
         for iterable in reversed(iters):
-            self.buffer.extendleft(reversed(iterable))
+            self.__buffer.extendleft(reversed(iterable))
 
 def num_nybles_from_immediate(lookup_struct):
     return (0 if None == lookup_struct[INSTRUCT_IMMEDIATE_NYBLE_LEN]
