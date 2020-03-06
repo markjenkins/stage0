@@ -22,6 +22,7 @@ from os.path import dirname, join as path_join
 from binascii import hexlify
 from sys import argv, stdout
 from collections import deque
+from itertools import count
 
 # The following globals, class and function definitions are copy-pasted
 # from M1.py in https://github.com/markjenkins/knightpies
@@ -324,6 +325,77 @@ class LookaheadBuffer(object):
                     break
             return len(self.buffer) >= n
 
+    def grow_by_predicate(self, predicate, n=None,
+                          raise_if_not_clearfirst=True):
+        """Grow the existing buffer by up to n amount as long as predicate
+        is true on the elements. Or leave out n to just rely on the predicate.
+
+        The item that fails the predicate will be the last in the buffer
+        if any. (n or the underlying iterable running out could leave you
+        with one that passes the predicate)
+
+        Default assumption is you've already cleared the buffer first so that
+        everything after this call matches your predicate. For your
+        protection raise_if_not_clearfirst defaults to True, meaning
+        you'll get an exception if the buffer isn't clear.
+
+        If you're aware of elments already in the buffer and want to
+        add more matching your predicate, set raise_if_not_clearfirst=False
+        to say you know what you're doing.
+
+        Returns a three element tuple(
+            hit_end,   # is True if the underlying iterator ran out
+                       # so its not the fault of the predicate or n
+
+            pred_last, # the last bool evaluation of predicate
+                       # None if hit_end==True
+
+            i,         # the number of elements added that matched the predicate
+                       # 0 <= i <= n
+                       # i==n implies hit_end==True or pred_last==True
+        )
+        """
+        # the reason we do is the assumption the caller will normally
+        # have dealt with the buffer contents first and would be making
+        # a mistake if for some reason clear and would be surprised
+        # the front of buffer contents don't match the predicate
+        if raise_if_not_clearfirst and len(self)>0:
+            raise Exception(
+                "grow_by_predicate called with content in buffer "
+                "but raise_if_not_clearfirst flag set"
+            )
+        # these are only used in assert expressions, do don't
+        # worry about them if we're in debug mode where assertions do nothing
+        if __debug__:
+            def i_n_assertion():
+                return 0 <= i <= n
+            def i_eq_n_assertion():
+                return n!=i or hit_end or pred_last
+            def i_n_assertions():
+                return i_n_assertion() and i_eq_n_assertion()
+
+        for i in (count(0) if n==None else range(n)):
+            try:
+                next_in = next(self.iterator)
+                self.buffer.append( next_in )
+            except StopIteration:
+                hit_end, pred_last = True, None
+                assert i_n_assertions()
+                return hit_end, pred_last, i
+
+            if not predicate(next_in):
+                hit_end, pred_last = False, False
+                assert i_n_assertions()
+                return hit_end, pred_last, i
+        # only if the loop completes, n been exhausted and the predicate
+        # passed on every element
+        else:
+            i+=1
+            assert( i==n )
+            hit_end, pred_last = False, True
+            assert i_n_assertions()
+            return hit_end, pred_last, i
+
     def next_n(self, n=1, grow=True, raise_if_too_small=True):
         if grow:
             self.grow_buffer(n)
@@ -516,6 +588,10 @@ def multiple_annotated_nybles_as_data(annotated_nybles):
         for x,y in annotated_nybles
         )
 
+def annotated_nyble_is_data(ny_annotated):
+    nyble, annotations = ny_annotated
+    return annotations[NY_ANNO_IS_DATA]
+
 # this is a helper called by replace_instructions_in_hex_nyble_stream
 # all asserts assume that context
 def construct_annotated_instruction(
@@ -687,33 +763,72 @@ def dissassemble_knight_binary(
     if builtin_definitions:
         assert( 8 == smallest_instruction_nybles(instruction_structure))
 
-    AFTER_DATA_CHARS = "'\n"
-    last_was_data = False
-    last_was_instruct = False
-    for content, annotations in replace_instructions_in_hex_nyble_stream(
+    lookahead_buffer = LookaheadBuffer(
+        replace_instructions_in_hex_nyble_stream(
             binary_to_annotated_hex(binary_fileobj),
             instruction_structure
-            ):
-        if annotations[NY_ANNO_IS_DATA]:
-            if ( ( ( annotations[NY_ANNO_ADDRESS]) % 4 == 0 and
-                   annotations[NY_ANNO_FIRST_NYBLE] ) or last_was_instruct):
-                if annotations[NY_ANNO_ADDRESS]>0 and not last_was_instruct:
-                    output_fileobj.write(AFTER_DATA_CHARS)
-                output_fileobj.write( "'" )
-            output_fileobj.write( content )
-            last_was_data = True
-            last_was_instruct = False
-        else: # if not data, it's an instruction!
-            if last_was_data:
-                output_fileobj.write(AFTER_DATA_CHARS)
+        ) # replace_instructions_in_hex_nyble_stream
+    ) # LookaheadBuffer()
 
-            output_fileobj.write( content )
-            output_fileobj.write( "\n" )
-            last_was_data = False
-            last_was_instruct = True
+    MAX_DATA_NYBLES_PER_LINE = 4 # configurable in a future version
 
-    if last_was_data:
-        output_fileobj.write(AFTER_DATA_CHARS)
+    hit_end = False
+    while len(lookahead_buffer)>0 or not hit_end:
+        # anything left over in the lookahead buffer is not data
+        # because we didn't handle below after calling grow_by_predicate
+        if len(lookahead_buffer)>0:
+            assert( len(lookahead_buffer) == 1 ) # no reason for many
+            # sub-element 0 of next item in buffer is some kind of
+            # assembler plain text instead of data.
+            # we print it on a line
+            #
+            # in later versions we'll consult the annotations for how to
+            # format things that are not raw data such as code and strings
+            print( next(lookahead_buffer)[0]  ) # element 0 is text content
+            assert( len(lookahead_buffer) == 0 )
+            continue
+
+        hit_end, pred_last, num_data = lookahead_buffer.grow_by_predicate(
+            annotated_nyble_is_data,
+            MAX_DATA_NYBLES_PER_LINE)
+        if num_data > 0: # if we found some data
+            # put it in single quotes on a line
+            output_fileobj.write(
+                "'%s'" % ''.join( # no characters between data
+                    nyble
+                    for nyble, annotations in lookahead_buffer.next_n(
+                            num_data, grow=False)
+                ) # join
+            ) # write
+
+            # hitting the end means we didn't stop because the predicate
+            # failed, it means we ran out of data at the end of the file
+            if hit_end:
+                assert num_data < MAX_DATA_NYBLES_PER_LINE
+                assert pred_last==None
+                break # technically the while loop variant has this covered
+            else:
+                # if we didn't hit the end, either we loaded enough
+                # data or the predicate stopped us, either way, go back
+                # to the top of the while loop to process more
+                assert ( num_data==MAX_DATA_NYBLES_PER_LINE or
+                         ( not pred_last and len(lookahead_buffer)==1 )
+                ) # assert expression
+                continue # redundant, we're headed back to top of while loop
+
+        # num_data must be 0
+        #
+        # if we also hit the end it means we're at end of file,
+        # because that means grow_by_predicate wasn't stopped by the
+        # predicate
+        elif hit_end:
+            assert num_data==0 # implied by num_data > 0 testing failing
+            assert len(lookahead_buffer)==0
+            break # redundant because the while loop invarient covers this
+        # but if we're not at the end
+        elif not pred_last:
+            assert len(lookahead_buffer)==1
+            # we'll handle the one item at the top of the loop
 
 def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
