@@ -360,10 +360,7 @@ class LookaheadBuffer(object):
         add more matching your predicate, set raise_if_not_clearfirst=False
         to say you know what you're doing.
 
-        Returns a three element tuple(
-            hit_end,   # is True if the underlying iterator ran out
-                       # so its not the fault of the predicate or n
-
+        Returns a two element tuple(
             pred_last, # the last bool evaluation of predicate
                        # None if hit_end==True
 
@@ -371,6 +368,11 @@ class LookaheadBuffer(object):
                        # 0 <= i <= n
                        # i==n implies hit_end==True or pred_last==True
         )
+
+        You probably also want to check LookaheadBuffer.hit_end()
+        as that should mean the predicate passed until the end and the
+        last element of the buffer passes the predicate
+        (though i < n would also be consistent this this)
         """
         # the reason we do is the assumption the caller will normally
         # have dealt with the buffer contents first and would be making
@@ -387,7 +389,7 @@ class LookaheadBuffer(object):
             def i_n_assertion():
                 return 0 <= i <= n
             def i_eq_n_assertion():
-                return n!=i or hit_end or pred_last
+                return n!=i or self.hit_end() or pred_last
             def i_n_assertions():
                 return i_n_assertion() and i_eq_n_assertion()
 
@@ -397,22 +399,22 @@ class LookaheadBuffer(object):
                 self.buffer.append( next_in )
             except StopIteration:
                 self.__hit_end  = True
-                hit_end, pred_last = True, None
+                pred_last = None
                 assert i_n_assertions()
-                return hit_end, pred_last, i
+                return pred_last, i
 
             if not predicate(next_in):
-                hit_end, pred_last = False, False
+                pred_last = False
                 assert i_n_assertions()
-                return hit_end, pred_last, i
+                return pred_last, i
         # only if the loop completes, n been exhausted and the predicate
         # passed on every element
         else:
             i+=1
             assert( i==n )
-            hit_end, pred_last = False, True
+            pred_last = True
             assert i_n_assertions()
-            return hit_end, pred_last, i
+            return pred_last, i
 
     def next_n(self, n=1, grow=True, raise_if_too_small=True):
         if grow:
@@ -811,7 +813,7 @@ def dissassemble_knight_binary(
             assert( len(lookahead_buffer) == 0 )
             continue
 
-        ignore, pred_last, num_data = lookahead_buffer.grow_by_predicate(
+        pred_last, num_data = lookahead_buffer.grow_by_predicate(
             annotated_nyble_is_data,
             MAX_DATA_NYBLES_PER_LINE)
         if num_data > 0: # if we found some data
