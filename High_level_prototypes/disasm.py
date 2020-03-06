@@ -314,6 +314,22 @@ class LookaheadBuffer(object):
         self.iterator = iterator
         self.buffer = deque()
 
+        # anyone LookaheadBuffer internal calling next() on self.iterator
+        # is responsible for catching StopIteration and setting this
+        # So far this is __next__, grow_buffer, and grow_by_predicate
+        self.__hit_end = False
+
+    def hit_end(self):
+        """If we hit StopIteration on the underlying iterator.
+        But this doesn't mean the buffer is empty, callers should
+        check unless it's clear from the context, even then, documenting
+        LookaheaddBuffer.__len__()==0 is a good idea
+        """
+        # anyone LookaheadBuffer internal calling next() on self.iterator
+        # is responsible for catching StopIteration and setting this
+        # So far this is __next__, grow_buffer, and grow_by_predicate
+        return self.__hit_end
+
     def grow_buffer(self, n):
         if len(self.buffer) >= n:
             return True
@@ -322,6 +338,7 @@ class LookaheadBuffer(object):
                 try:
                     self.buffer.append( next(self.iterator) )
                 except StopIteration:
+                    self.__hit_end = True
                     break
             return len(self.buffer) >= n
 
@@ -379,6 +396,7 @@ class LookaheadBuffer(object):
                 next_in = next(self.iterator)
                 self.buffer.append( next_in )
             except StopIteration:
+                self.__hit_end  = True
                 hit_end, pred_last = True, None
                 assert i_n_assertions()
                 return hit_end, pred_last, i
@@ -443,7 +461,13 @@ class LookaheadBuffer(object):
         #
         # cool fact, callers (who are using builtin next() ) can
         # provide a default value
-        return next(iter(self.next_n(n=1, grow=True)))
+        try:
+            next_val = next(iter(self.next_n(n=1, grow=True)))
+        except StopIteration:
+            self.__hit_end = True
+            raise # re raise same StopIteration
+        else:
+            return next_val
 
     def __len__(self):
         return len(self.buffer)
@@ -772,8 +796,7 @@ def dissassemble_knight_binary(
 
     MAX_DATA_NYBLES_PER_LINE = 4 # configurable in a future version
 
-    hit_end = False
-    while len(lookahead_buffer)>0 or not hit_end:
+    while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
         # anything left over in the lookahead buffer is not data
         # because we didn't handle below after calling grow_by_predicate
         if len(lookahead_buffer)>0:
@@ -788,7 +811,7 @@ def dissassemble_knight_binary(
             assert( len(lookahead_buffer) == 0 )
             continue
 
-        hit_end, pred_last, num_data = lookahead_buffer.grow_by_predicate(
+        ignore, pred_last, num_data = lookahead_buffer.grow_by_predicate(
             annotated_nyble_is_data,
             MAX_DATA_NYBLES_PER_LINE)
         if num_data > 0: # if we found some data
@@ -803,7 +826,7 @@ def dissassemble_knight_binary(
 
             # hitting the end means we didn't stop because the predicate
             # failed, it means we ran out of data at the end of the file
-            if hit_end:
+            if lookahead_buffer.hit_end():
                 assert num_data < MAX_DATA_NYBLES_PER_LINE
                 assert pred_last==None
                 break # technically the while loop variant has this covered
@@ -821,7 +844,7 @@ def dissassemble_knight_binary(
         # if we also hit the end it means we're at end of file,
         # because that means grow_by_predicate wasn't stopped by the
         # predicate
-        elif hit_end:
+        elif lookahead_buffer.hit_end():
             assert num_data==0 # implied by num_data > 0 testing failing
             assert len(lookahead_buffer)==0
             break # redundant because the while loop invarient covers this
