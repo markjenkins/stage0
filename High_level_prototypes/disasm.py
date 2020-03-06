@@ -478,6 +478,13 @@ class LookaheadBuffer(object):
         for iterable in reversed(iters):
             self.__buffer.extendleft(reversed(iterable))
 
+    def peek(self):
+        if len(self.__buffer)==0:
+            raise Exception(
+                "peek() called when buffer is empty, you should check len()")
+        next_val = next(iter(self.__buffer))
+        return next_val
+
 def num_nybles_from_immediate(lookup_struct):
     return (0 if None == lookup_struct[INSTRUCT_IMMEDIATE_NYBLE_LEN]
             else lookup_struct[INSTRUCT_IMMEDIATE_NYBLE_LEN])
@@ -790,12 +797,9 @@ def consolidate_data_into_chunks_in_hex_nyble_stream(
             annotated_nyble_is_data,
             MAX_DATA_NYBLES_PER_LINE)
         if num_data > 0: # if we found some data
-            # proof we need a peek operator
-            first_data_nyble_annotated = next(lookahead_buffer)
+            first_data_nyble_annotated = lookahead_buffer.peek()
             first_data_nyble, first_data_nyble_annotations = \
                 first_data_nyble_annotated
-            lookahead_buffer.return_iterables_to_front(
-                (first_data_nyble_annotated,) )
 
             # put it in single quotes as one chunk
             yield (
