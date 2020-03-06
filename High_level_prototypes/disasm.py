@@ -453,7 +453,7 @@ class LookaheadBuffer(object):
     def __next__(self):
         # support python's builtin next()
         #
-        # raises StopIeteration if there is nothing left or a default value
+        # raises StopIteration if there is nothing left or a default value
         # if one additional argument is provided
         # checking for len(args) == 1 ensures we add at most one extra
         # argumet to python's builtin next()
