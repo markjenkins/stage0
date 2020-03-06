@@ -763,53 +763,26 @@ def replace_instructions_in_hex_nyble_stream(
                             first_nyble_annotations =
                               prefix_nybles_w_annotations[0][1] )
 
-def binary_to_annotated_hex(binary_fileobj):
-    # nyble is int when iterating over bytes from hexlify, hence chr(nyble)
-    for i, nyble in enumerate(hexlify(binary_fileobj.read())):
-        yield (chr(nyble).upper(),
-               (False,    # NY_ANNO_IS_DATA
-                i//2,     # NY_ANNO_ADDRESS
-                (i%2==0), # NY_ANNO_FIRST_NYBLE
-               ) # annotation tuple
-        ) # outer tuple
+def consolidate_data_into_chunks_in_hex_nyble_stream(
+        hex_nyble_stream, n=4):
+    if (n % 2)!=0:
+        raise Exception(
+            "consolidate_data_into_chunks_in_hex_nyble_stream can only do it "
+            "in multiples of 2, e.g. two nybles per byte")
 
-def dissassemble_knight_binary(
-        binary_fileobj,
-        output_fileobj,
-        definitions_file=None,
-        ):
-    builtin_definitions = definitions_file==None
+    lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
 
-    if builtin_definitions:
-        definitions_file = get_stage0_knight_defs_filename()
-    instruction_structure = get_knight_instruction_structure_from_file(
-        definitions_file, strict_size_assert=builtin_definitions)
-
-    # we know the smallest
-    if builtin_definitions:
-        assert( 8 == smallest_instruction_nybles(instruction_structure))
-
-    lookahead_buffer = LookaheadBuffer(
-        replace_instructions_in_hex_nyble_stream(
-            binary_to_annotated_hex(binary_fileobj),
-            instruction_structure
-        ) # replace_instructions_in_hex_nyble_stream
-    ) # LookaheadBuffer()
-
-    MAX_DATA_NYBLES_PER_LINE = 4 # configurable in a future version
+    MAX_DATA_NYBLES_PER_LINE = n
 
     while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
         # anything left over in the lookahead buffer is not data
         # because we didn't handle below after calling grow_by_predicate
         if len(lookahead_buffer)>0:
             assert( len(lookahead_buffer) == 1 ) # no reason for many
-            # sub-element 0 of next item in buffer is some kind of
+            # next item in buffer is some kind of
             # assembler plain text instead of data.
-            # we print it on a line
-            #
-            # in later versions we'll consult the annotations for how to
-            # format things that are not raw data such as code and strings
-            print( next(lookahead_buffer)[0]  ) # element 0 is text content
+            # pass it through
+            yield next(lookahead_buffer)
             assert( len(lookahead_buffer) == 0 )
             continue
 
@@ -817,14 +790,22 @@ def dissassemble_knight_binary(
             annotated_nyble_is_data,
             MAX_DATA_NYBLES_PER_LINE)
         if num_data > 0: # if we found some data
-            # put it in single quotes on a line
-            output_fileobj.write(
+            # proof we need a peek operator
+            first_data_nyble_annotated = next(lookahead_buffer)
+            first_data_nyble, first_data_nyble_annotations = \
+                first_data_nyble_annotated
+            lookahead_buffer.return_iterables_to_front(
+                (first_data_nyble_annotated,) )
+
+            # put it in single quotes as one chunk
+            yield (
                 "'%s'" % ''.join( # no characters between data
                     nyble
                     for nyble, annotations in lookahead_buffer.next_n(
                             num_data, grow=False)
-                ) # join
-            ) # write
+                ), # join
+                first_data_nyble_annotations
+            ) # tuple
 
             # hitting the end means we didn't stop because the predicate
             # failed, it means we ran out of data at the end of the file
@@ -854,6 +835,49 @@ def dissassemble_knight_binary(
         elif not pred_last:
             assert len(lookahead_buffer)==1
             # we'll handle the one item at the top of the loop
+
+def binary_to_annotated_hex(binary_fileobj):
+    # nyble is int when iterating over bytes from hexlify, hence chr(nyble)
+    for i, nyble in enumerate(hexlify(binary_fileobj.read())):
+        yield (chr(nyble).upper(),
+               (False,    # NY_ANNO_IS_DATA
+                i//2,     # NY_ANNO_ADDRESS
+                (i%2==0), # NY_ANNO_FIRST_NYBLE
+               ) # annotation tuple
+        ) # outer tuple
+
+def dissassemble_knight_binary(
+        binary_fileobj,
+        output_fileobj,
+        definitions_file=None,
+        ):
+    builtin_definitions = definitions_file==None
+
+    if builtin_definitions:
+        definitions_file = get_stage0_knight_defs_filename()
+    instruction_structure = get_knight_instruction_structure_from_file(
+        definitions_file, strict_size_assert=builtin_definitions)
+
+    # we know the smallest
+    if builtin_definitions:
+        assert( 8 == smallest_instruction_nybles(instruction_structure))
+
+    nyble_stream = binary_to_annotated_hex(binary_fileobj)
+
+    after_instruction_replacement_stream = \
+        replace_instructions_in_hex_nyble_stream(
+            nyble_stream,
+            instruction_structure
+        ) # replace_instructions_in_hex_nyble_stream
+
+    MAX_DATA_NYBLES_PER_LINE = 4 # configurable in a future version
+    final_stream = consolidate_data_into_chunks_in_hex_nyble_stream(
+        after_instruction_replacement_stream,
+        n=MAX_DATA_NYBLES_PER_LINE)
+
+    for content, annotations in final_stream:
+        output_fileobj.write(content)
+        output_fileobj.write("\n")
 
 def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
