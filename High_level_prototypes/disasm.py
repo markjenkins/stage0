@@ -272,6 +272,8 @@ def get_macros_defined_and_add_to_sym_table(f, symbols=None):
 
 # Everything below is the unique code of disasm.py
 
+DEFAULT_MAX_DATA_NYBLES_PER_LINE = 4
+
 NUM_REGISTERS = 16
 
 KNIGHT_REGISTER_SYMBOLS = {
@@ -771,7 +773,7 @@ def replace_instructions_in_hex_nyble_stream(
                               prefix_nybles_w_annotations[0][1] )
 
 def consolidate_data_into_chunks_in_hex_nyble_stream(
-        hex_nyble_stream, n=4):
+        hex_nyble_stream, n=DEFAULT_MAX_DATA_NYBLES_PER_LINE):
     if (n % 2)!=0:
         raise Exception(
             "consolidate_data_into_chunks_in_hex_nyble_stream can only do it "
@@ -874,10 +876,11 @@ def dissassemble_knight_binary(
             instruction_structure
         ) # replace_instructions_in_hex_nyble_stream
 
-    MAX_DATA_NYBLES_PER_LINE = 4 # configurable in a future version
+    # configurable in a future version
+    max_data_nybles_per_line = DEFAULT_MAX_DATA_NYBLES_PER_LINE
     final_stream = consolidate_data_into_chunks_in_hex_nyble_stream(
         after_instruction_replacement_stream,
-        n=MAX_DATA_NYBLES_PER_LINE)
+        n=max_data_nybles_per_line)
 
     for content, annotations in final_stream:
         output_fileobj.write(content)
