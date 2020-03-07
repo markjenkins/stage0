@@ -803,16 +803,24 @@ def consolidate_data_into_chunks_in_hex_nyble_stream(
             first_data_nyble, first_data_nyble_annotations = \
                 first_data_nyble_annotated
 
+            # if the first nyble isn't the first nyble in a pair of nybles from
+            # an original byte, something is horibly wrong
+            assert first_data_nyble_annotations[NY_ANNO_FIRST_NYBLE]
+
             # put it in single quotes as one chunk
-            yield (
-                "'%s'" % ''.join( # no characters between data
+            nyble_chunk_str = "'%s'" % ''.join( # no characters between data
                     nyble
                     for nyble, annotations in lookahead_buffer.next_n(
                             num_data, grow=False)
-                ), # join
-                first_data_nyble_annotations
-            ) # tuple
+            ) # join
 
+            # if the number of nybles isn't even in the final product,
+            # something is horibly wrong
+            # note, the incusion of two single quotes in the string
+            # format above doesn't change this
+            assert len(nyble_chunk_str) % 2 == 0
+
+            yield (nyble_chunk_str, first_data_nyble_annotations)
             # hitting the end means we didn't stop because the predicate
             # failed, it means we ran out of data at the end of the file
             if lookahead_buffer.hit_end():
