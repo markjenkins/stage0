@@ -887,6 +887,7 @@ def replace_strings_in_hex_nyble_stream(
             num_additional_nulls = num_nulls_to_terminate-1
 
             if num_additional_nulls>0:
+                assert not v2_strings
                 additional_nulls = lookahead_buffer.next_n(
                     num_additional_nulls,
                     grow=True)
@@ -931,8 +932,20 @@ def replace_strings_in_hex_nyble_stream(
                 yield from multiple_annotated_nybles_as_data(
                     make_nyble_stream_from_pair_stream(chars_no_null)
                 ) # multiple_annotated_nybles_as_data
+
+                # the first candidate null isn't a printable character
+                # as that would have failed the predicate check,
+                # so we throw that back to the stream as hex nyble data as well
+                first_non_printing = chars_and_first_null[-1]
+                yield first_non_printing[0:2]
+                yield first_non_printing[2:4]
+
+                # but any other candidate nulls need to go back into the buffer
+                # as they could very well be the start of printable chars with
+                # appropriate null padding following
+                assert not v2_strings or len(additional_nulls)==0
                 lookahead_buffer.return_iterables_to_front(
-                    all_null)
+                    additional_nulls)
 
                 # from here return to top of while, even if
                 # lookahead_buffer.hit_end() the few bytes we returned
