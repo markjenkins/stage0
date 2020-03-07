@@ -355,8 +355,14 @@ class LookaheadBuffer(object):
                     break
             return len(self.__buffer) >= n
 
+    def remove_existing_by_predicate(self, predicate):
+        while len(self)>0 and predicate(self.peek()):
+            yield next(self)
+
     def grow_by_predicate(self, predicate, n=None,
-                          raise_if_not_clearfirst=True):
+                          raise_if_not_clearfirst=True,
+                          include_current_as_passing=False,
+    ):
         """Grow the existing buffer by up to n amount as long as predicate
         is true on the elements. Or leave out n to just rely on the predicate.
 
@@ -387,11 +393,16 @@ class LookaheadBuffer(object):
         last element of the buffer passes the predicate
         (though i < n would also be consistent this this)
         """
+        if len(self)>0 and include_current_as_passing:
+            if __debug__:
+                for elem in self:
+                    assert not predicate(elem)
+
         # the reason we do is the assumption the caller will normally
         # have dealt with the buffer contents first and would be making
         # a mistake if for some reason clear and would be surprised
         # the front of buffer contents don't match the predicate
-        if raise_if_not_clearfirst and len(self)>0:
+        elif raise_if_not_clearfirst and len(self)>0:
             raise Exception(
                 "grow_by_predicate called with content in buffer "
                 "but raise_if_not_clearfirst flag set"
@@ -406,6 +417,9 @@ class LookaheadBuffer(object):
             def i_n_assertions():
                 return i_n_assertion() and i_eq_n_assertion()
 
+        existing_passed_element_count = (0 if not include_current_as_passing
+                                         else len(self) )
+
         for i in (count(0) if n==None else range(n)):
             try:
                 next_in = next(self.__iterator)
@@ -414,12 +428,12 @@ class LookaheadBuffer(object):
                 self.__hit_end  = True
                 pred_last = None
                 assert i_n_assertions()
-                return pred_last, i
+                return pred_last, existing_passed_element_count+i
 
             if not predicate(next_in):
                 pred_last = False
                 assert i_n_assertions()
-                return pred_last, i
+                return pred_last, existing_passed_element_count+i
         # only if the loop completes, n been exhausted and the predicate
         # passed on every element
         else:
@@ -427,7 +441,7 @@ class LookaheadBuffer(object):
             assert( i==n )
             pred_last = True
             assert i_n_assertions()
-            return pred_last, i
+            return pred_last, existing_passed_element_count+i
 
     def next_n(self, n=1, grow=True, raise_if_too_small=True):
         if grow:
@@ -1043,6 +1057,7 @@ def dissassemble_knight_binary(
         binary_fileobj,
         output_fileobj,
         definitions_file=None,
+        string_discovery=False,
         ):
     builtin_definitions = definitions_file==None
 
@@ -1063,8 +1078,11 @@ def dissassemble_knight_binary(
             instruction_structure
         ) # replace_instructions_in_hex_nyble_stream
 
-    after_string_detection_stream = replace_strings_in_hex_nyble_stream(
-        after_instruction_replacement_stream)
+    if string_discovery:
+        after_string_detection_stream = replace_strings_in_hex_nyble_stream(
+            after_instruction_replacement_stream)
+    else:
+        after_string_detection_stream = after_instruction_replacement_stream
 
     # configurable in a future version
     max_data_nybles_per_line = DEFAULT_MAX_DATA_NYBLES_PER_LINE
