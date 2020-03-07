@@ -278,7 +278,9 @@ DEFAULT_MAX_STRING_SIZE = 1024*1024*1024*256 # 256 MB
 
 VT = '\x0B'
 FF = '\x0C'
-PRINTABLE_MINUS_VT_FF = {
+DQ = '"'
+PRINTABLE_MINUS_VT_FF_DQ = {
+    c
     for c in printable
     if c not in (VT, FF)
     }
@@ -621,6 +623,11 @@ def get_knight_instruction_structure_from_file(
 
 NY_ANNO_IS_DATA, NY_ANNO_ADDRESS, NY_ANNO_FIRST_NYBLE = range(3)
 
+def annotate_nyble_as_not_data(nyble_annotations):
+    return (nyble_annotations[0:NY_ANNO_IS_DATA] +
+            (False, ) + # NY_ANNO_IS_DATA
+            nyble_annotations[NY_ANNO_IS_DATA+1:] )
+
 def annotate_nyble_as_data(nyble_annotations):
     return (nyble_annotations[0:NY_ANNO_IS_DATA] +
             (True, ) + # NY_ANNO_IS_DATA
@@ -799,6 +806,19 @@ def make_nyble_data_pair_stream(nyble_data_stream):
             yield from lookahead_buffer.clear(as_iter=True)
             break # redundant, while invariant has us covered
 
+def make_nyble_stream_from_pair_stream(nyble_pair_stream):
+    for nyble_pair in nyble_pair_scheme:
+        yield nyble_pair[0:2]
+        yield nyble_pair[2:4]
+
+def ascii_string_char_from_two_nybles(
+        nyble1, nyble2, lookset=PRINTABLE_MINUS_VT_FF_DQ):
+    return unhexlify(nyble1+nyble2).decode('ascii')
+
+def two_nybles_are_ascii_string_char(nyble1, nyble2,
+                                     lookset=PRINTABLE_MINUS_VT_FF_DQ):
+    return ascii_string_char_from_two_nybles(nyble1+nyble2) in lookset
+
 def nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles):
     if not annotated_nyble_is_data(annotated_nyble_or_nybles):
         return False
@@ -807,12 +827,27 @@ def nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles):
         (nyble1, nyble1_annotations,
          nyble2, nyble2_annotations) = annotated_nyble_or_nybles
     try:
-        return unhexlify(nyble1+nyble2).decode('ascii') in PRINTABLE_MINUS_VT_FF
+        return two_nybles_are_ascii_string_char(nyble1, nyble2)
     except UnicodeDecodeError:
         return False
-        
+
+V1_STRING_PAD_ALIGN = 4
+def nullpads_for_v1_string(num_printable):
+    string_len_w_null = num_printable+1
+    # modular arithmatic can tell us how much longer than the alignment
+    alignment_exceeded_by = string_len_w_null % V1_STRING_PAD_ALIGN
+    # subtraction tells us how many nulls to hit the alignment
+    additional_nulls_required = V1_STRING_PAD_ALIGN - alignment_exceeded_by
+    # modular arithmatic
+    extra_padding = \
+        additional_nulls_required % V1_STRING_PAD_ALIGN
+    assert( 0<= extra_pad < V1_STRING_PAD_ALIGN )
+    return 1 + extra_padding
+
+V2_STRING_BY_DEFAULT = False
+
 def replace_strings_in_hex_nyble_stream(
-        hex_nyble_stream, v2_strings=True,
+        hex_nyble_stream, v2_strings=V2_STRING_BY_DEFAULT,
         max_string_size=DEFAULT_MAX_STRING_SIZE,
 ):
     lookahead_buffer = LookaheadBuffer(
@@ -821,14 +856,88 @@ def replace_strings_in_hex_nyble_stream(
     while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
         pred_last, num_printable = lookahead_buffer.grow_by_predicate(
             nyble_pairs_are_printable_ascii_data,
-            n=MAX_DATA_NYBLES_PER_LINE)
+            n=DEFAULT_MAX_DATA_NYBLES_PER_LINE)
         if num_printable == 0:
             if lookahead_buffer.hit_end():
                 break
+        # if the predicate passed on the last character, that's a problem
+        # as we're looking for a terminating null
+        elif pred_last:
+            yield from (
+                multiple_annotated_nybles_as_data(
+                    make_nyble_stream_from_pair_stream(
+                        lookahead_buffer.clear(as_iter) )
+                ) # multiple_annotated_nybles_as_data
+            ) # make_nyble_stream_from_pair_stream
+            # redundant as while loop has this covered
+            if lookahead_buffer.hit_last():
+                break
+        # else num_printable > 0 and not pred_last
+        # and not lookahead_buffer.hit_last()
         else:
-            pass
-        
-    
+            chars_and_first_null = lookahead_buffer.clear(as_tuple=True)
+
+            # we were stopped by the predicate, so we were not stopped
+            # by exhausing the iterator
+            assert not lookahead_buffer.hit_last()
+            num_nulls_to_terminate = (
+                1 if v2_strings
+                else nullpads_for_v1_string(num_printable)
+            )
+            num_additional_nulls = num_nulls_to_terminate-1
+
+            if num_additional_nulls>0:
+                additional_nulls = lookahead_buffer.next_n(
+                    num_additional_nulls,
+                    grow=True)
+                assert len(lookahead_buffer)==0
+            else:
+                additional_nulls = ()
+
+            all_nulls = (chars_and_first_null[-1],)+additional_nulls
+
+            all_expected_nulls_are_data_and_zero = all(
+                (annotated_nyble_is_data(candidate_null[0:2]) and
+                 annotated_nyble_is_data(candidate_null[2:4]) and
+                 candidate_null[0]=='0' and
+                 candidate_null[2]=='0'
+                )
+                for candidate_null in all_nulls
+            ) # all
+
+            chars_no_null = chars_and_first_null[:-1]
+
+            # if everything is solid with the expected nulls, that is
+            # they're data, and there is enough of them to be
+            # enough padding then we can construct the string and return it
+            if (all_expected_nulls_are_data_and_zero and
+                len(all_nulls)==num_nulls_to_terminate):
+                concat_string = '"%s"' % ''.join(
+                    ascii_string_char_from_two_nybles(content1, content2)
+                    for content1, annotations1, content2, annotations2
+                    in chars_no_null
+                    )
+                yield ( concat_string,
+                        annotate_nyble_as_not_data(annotations1)
+                ) # tuple expression
+
+            # if something is wrong dump the bytes we hoped were
+            # a string back out as a hex nyble data stream
+            # but, the bytes the we hoped were terminating and padding
+            # null bytes we put back in the LookaheadBuffer so they
+            # can be themselves inspected in the next pass through
+            # the while loop as the start of a string
+            else:
+                yield from multiple_annotated_nybles_as_data(
+                    make_nyble_stream_from_pair_stream(chars_no_null)
+                ) # multiple_annotated_nybles_as_data
+                lookahead_buffer.return_iterables_to_front(
+                    all_null)
+
+                # from here return to top of while, even if
+                # lookahead_buffer.hit_end() the few bytes we returned
+                # to the front of the buffer could constitute a string!
+
 def consolidate_data_into_chunks_in_hex_nyble_stream(
         hex_nyble_stream, n=DEFAULT_MAX_DATA_NYBLES_PER_LINE):
     if (n % 2)!=0:
@@ -840,7 +949,7 @@ def consolidate_data_into_chunks_in_hex_nyble_stream(
 
     MAX_DATA_NYBLES_PER_LINE = n
 
-    while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end()
+    while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
         # anything left over in the lookahead buffer is not data
         # because we didn't handle below after calling grow_by_predicate
         if len(lookahead_buffer)>0:
@@ -941,10 +1050,13 @@ def dissassemble_knight_binary(
             instruction_structure
         ) # replace_instructions_in_hex_nyble_stream
 
+    after_string_detection_stream = replace_strings_in_hex_nyble_stream(
+        after_instruction_replacement_stream)
+
     # configurable in a future version
     max_data_nybles_per_line = DEFAULT_MAX_DATA_NYBLES_PER_LINE
     final_stream = consolidate_data_into_chunks_in_hex_nyble_stream(
-        after_instruction_replacement_stream,
+        after_string_detection_stream,
         n=max_data_nybles_per_line)
 
     for content, annotations in final_stream:
