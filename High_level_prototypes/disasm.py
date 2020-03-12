@@ -23,6 +23,7 @@ from binascii import hexlify
 from sys import argv, stdout
 from collections import deque
 from itertools import count
+from string import printable
 
 # The following globals, class and function definitions are copy-pasted
 # from M1.py in https://github.com/markjenkins/knightpies
@@ -273,6 +274,14 @@ def get_macros_defined_and_add_to_sym_table(f, symbols=None):
 # Everything below is the unique code of disasm.py
 
 DEFAULT_MAX_DATA_NYBLES_PER_LINE = 4
+DEFAULT_MAX_STRING_SIZE = 1024*1024*1024*256 # 256 MB
+
+VT = '\x0B'
+FF = '\x0C'
+PRINTABLE_MINUS_VT_FF = {
+    for c in printable
+    if c not in (VT, FF)
+    }
 
 NUM_REGISTERS = 16
 
@@ -772,6 +781,54 @@ def replace_instructions_in_hex_nyble_stream(
                             first_nyble_annotations =
                               prefix_nybles_w_annotations[0][1] )
 
+def make_nyble_data_pair_stream(nyble_data_stream):
+    lookahead_buffer = LookaheadBuffer(nyble_data_stream)
+    while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
+        if lookahead_buffer.grow_buffer(2): # 2 nybles per byte
+            annotated_nybles = lookahead_buffer.next_n(2,grow=False)
+            ( (nyble1, nyble1_annotations), 
+              (nyble2, nyble2_annotations)  ) = annotated_nybles
+            if all( annotated_nyble_is_data(an_ny)
+                    for an_ny in annotated_nybles ):
+                yield (nyble1, nyble1_annotations, nyble2, nyble2_annotations)
+            else:
+                assert all( not annotated_nyble_is_data(an_ny)
+                            for an_ny in annotated_nybles )
+                yield from annotated_nybles
+        else:
+            yield from lookahead_buffer.clear(as_iter=True)
+            break # redundant, while invariant has us covered
+
+def nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles):
+    if not annotated_nyble_is_data(annotated_nyble_or_nybles):
+        return False
+    else:
+        assert len(annotated_nyble_or_nybles)==4 # nyble pair with annotations
+        (nyble1, nyble1_annotations,
+         nyble2, nyble2_annotations) = annotated_nyble_or_nybles
+    try:
+        return unhexlify(nyble1+nyble2).decode('ascii') in PRINTABLE_MINUS_VT_FF
+    except UnicodeDecodeError:
+        return False
+        
+def replace_strings_in_hex_nyble_stream(
+        hex_nyble_stream, v2_strings=True,
+        max_string_size=DEFAULT_MAX_STRING_SIZE,
+):
+    lookahead_buffer = LookaheadBuffer(
+        make_nyble_data_pair_stream(hex_nyble_stream) )
+
+    while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
+        pred_last, num_printable = lookahead_buffer.grow_by_predicate(
+            nyble_pairs_are_printable_ascii_data,
+            n=MAX_DATA_NYBLES_PER_LINE)
+        if num_printable == 0:
+            if lookahead_buffer.hit_end():
+                break
+        else:
+            pass
+        
+    
 def consolidate_data_into_chunks_in_hex_nyble_stream(
         hex_nyble_stream, n=DEFAULT_MAX_DATA_NYBLES_PER_LINE):
     if (n % 2)!=0:
@@ -783,7 +840,7 @@ def consolidate_data_into_chunks_in_hex_nyble_stream(
 
     MAX_DATA_NYBLES_PER_LINE = n
 
-    while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
+    while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end()
         # anything left over in the lookahead buffer is not data
         # because we didn't handle below after calling grow_by_predicate
         if len(lookahead_buffer)>0:
