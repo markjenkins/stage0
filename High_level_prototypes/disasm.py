@@ -19,7 +19,7 @@
 from __future__ import division
 
 from os.path import dirname, join as path_join
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from sys import argv, stdout
 from collections import deque
 from itertools import count
@@ -361,7 +361,7 @@ class LookaheadBuffer(object):
 
     def grow_by_predicate(self, predicate, n=None,
                           raise_if_not_clearfirst=True,
-                          include_current_as_passing=False,
+                          include_some_current_as_passing=False,
     ):
         """Grow the existing buffer by up to n amount as long as predicate
         is true on the elements. Or leave out n to just rely on the predicate.
@@ -393,10 +393,15 @@ class LookaheadBuffer(object):
         last element of the buffer passes the predicate
         (though i < n would also be consistent this this)
         """
-        if len(self)>0 and include_current_as_passing:
-            if __debug__:
-                for elem in self:
-                    assert not predicate(elem)
+
+        # if we're permitted (include_some_current_as_passing) there might
+        # be some predicate passing items already in the buffer
+        if len(self)>0 and include_some_current_as_passing:
+            for i, elem in enumerate(self):
+                # if one of the pre-existing items fails
+                # we're done
+                if not predicate(elem):
+                    return False, i
 
         # the reason we do is the assumption the caller will normally
         # have dealt with the buffer contents first and would be making
@@ -417,8 +422,9 @@ class LookaheadBuffer(object):
             def i_n_assertions():
                 return i_n_assertion() and i_eq_n_assertion()
 
-        existing_passed_element_count = (0 if not include_current_as_passing
-                                         else len(self) )
+        existing_passed_element_count = (
+            0 if not include_some_current_as_passing
+            else len(self) )
 
         for i in (count(0) if n==None else range(n)):
             try:
@@ -635,7 +641,11 @@ def get_knight_instruction_structure_from_file(
 
     return finished_instruction_struct
 
-NY_ANNO_IS_DATA, NY_ANNO_ADDRESS, NY_ANNO_FIRST_NYBLE = range(3)
+NY_NUM_ANNO = 4
+(NY_ANNO_IS_DATA, NY_ANNO_ADDRESS,
+ NY_ANNO_FIRST_NYBLE, NY_ANNO_IS_PAIR )= range(NY_NUM_ANNO)
+
+EMPTY_NY_ANNO_IS_PAIR = ()
 
 def annotate_nyble_as_not_data(nyble_annotations):
     return (nyble_annotations[0:NY_ANNO_IS_DATA] +
@@ -706,6 +716,7 @@ def construct_annotated_instruction(
             (False, # NY_ANNO_IS_DATA, it's not data its an instruction!
              first_nyble_annotations[NY_ANNO_ADDRESS], # NY_ANNO_ADDRESS
              True, # NY_ANNO_FIRST_NYBLE, instructions start on byte boundary
+             EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
             )
     )
 
@@ -802,28 +813,72 @@ def replace_instructions_in_hex_nyble_stream(
                             first_nyble_annotations =
                               prefix_nybles_w_annotations[0][1] )
 
+def enhance_annotations_to_include_sub_annotations_from_pair(
+        ny_annotations, sub_annotations):
+    return ( ny_annotations[0:NY_ANNO_IS_PAIR] +
+             # NY_ANNO_IS_PAIR, will be True in bool() context
+             (sub_annotations,) +
+             ny_annotations[NY_ANNO_IS_PAIR+1:]
+    ) # end tuple addition expression
+                        
+def make_nyble_pair(annotated_nyble1, annotated_nyble2):
+    return (
+        (annotated_nyble1[0], annotated_nyble2[0]),
+        enhance_annotations_to_include_sub_annotations_from_pair(
+            annotated_nyble1[1], annotated_nyble2[1])
+    ) # tuple
+
+def is_nyble_pair(nyble_pair):
+    return (isinstance(nyble_pair[0], tuple) and
+            nyble_pair[1][NY_ANNO_IS_PAIR])
+
 def make_nyble_data_pair_stream(nyble_data_stream):
     lookahead_buffer = LookaheadBuffer(nyble_data_stream)
     while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
         if lookahead_buffer.grow_buffer(2): # 2 nybles per byte
             annotated_nybles = lookahead_buffer.next_n(2,grow=False)
-            ( (nyble1, nyble1_annotations), 
-              (nyble2, nyble2_annotations)  ) = annotated_nybles
+            #( (nyble1, nyble1_annotations), 
+            #  (nyble2, nyble2_annotations)  ) = annotated_nybles
             if all( annotated_nyble_is_data(an_ny)
                     for an_ny in annotated_nybles ):
-                yield (nyble1, nyble1_annotations, nyble2, nyble2_annotations)
+                assert len(annotated_nybles) == 2
+                yield make_nyble_pair(*annotated_nybles)
             else:
-                assert all( not annotated_nyble_is_data(an_ny)
-                            for an_ny in annotated_nybles )
-                yield from annotated_nybles
+                # the only reason we wouldn't have two data nybles together
+                # would be something not data comes first
+                # in which case we can yield the first thing and
+                # put the rest back for the next pass to work with
+                assert not annotated_nyble_is_data(annotated_nybles[0])
+                yield annotated_nybles[0]
+                lookahead_buffer.return_iterables_to_front(
+                            annotated_nybles[1:] )
         else:
             yield from lookahead_buffer.clear(as_iter=True)
             break # redundant, while invariant has us covered
 
+def is_nyble_data_pair(nyble_pair):
+    pair, annotations = nyble_pair
+    assert (not annotations[NY_ANNO_IS_PAIR] or
+            annotations[NY_ANNO_IS_PAIR][NY_ANNO_IS_DATA])
+    return annotations[NY_ANNO_IS_PAIR]
+
+def expand_nyble_pair_back_to_two_nybles(nyble_pair):
+    assert nyble_pair[1][NY_ANNO_IS_PAIR]
+    ( (nyble1, nyble2), annotations ) = nyble_pair
+    annotations2 = annotations[NY_ANNO_IS_PAIR]
+    annotations1 = (
+        annotations[0:NY_ANNO_IS_PAIR] +
+        ( (), ) + # NY_ANNO_IS_PAIR
+        annotations[NY_ANNO_IS_PAIR+1:]
+    )        
+    return ( (nyble1, annotations1), (nyble2, annotations2) )
+
 def make_nyble_stream_from_pair_stream(nyble_pair_stream):
-    for nyble_pair in nyble_pair_scheme:
-        yield nyble_pair[0:2]
-        yield nyble_pair[2:4]
+    for nyble_pair in nyble_pair_stream:
+        if is_nyble_data_pair(nyble_pair):
+            yield from expand_nyble_pair_back_to_two_nybles(nyble_pair)
+        else:
+            yield nyble_pair
 
 def ascii_string_char_from_two_nybles(
         nyble1, nyble2, lookset=PRINTABLE_MINUS_VT_FF_DQ):
@@ -831,20 +886,23 @@ def ascii_string_char_from_two_nybles(
 
 def two_nybles_are_ascii_string_char(nyble1, nyble2,
                                      lookset=PRINTABLE_MINUS_VT_FF_DQ):
-    return ascii_string_char_from_two_nybles(nyble1+nyble2) in lookset
+    return ascii_string_char_from_two_nybles(nyble1,nyble2) in lookset
 
 def nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles):
-    if not annotated_nyble_is_data(annotated_nyble_or_nybles):
+    if not is_nyble_data_pair(annotated_nyble_or_nybles):
         return False
-    else:
-        assert len(annotated_nyble_or_nybles)==4 # nyble pair with annotations
-        (nyble1, nyble1_annotations,
-         nyble2, nyble2_annotations) = annotated_nyble_or_nybles
+
+    ( (nyble1, nyble1_annotations),
+      (nyble2, nyble2_annotations), ) = expand_nyble_pair_back_to_two_nybles(
+          annotated_nyble_or_nybles)
     try:
         return two_nybles_are_ascii_string_char(nyble1, nyble2)
     except UnicodeDecodeError:
         return False
 
+def nyble_pairs_are_not_printable_ascii_data(annotated_nyble_or_nybles):
+    return not nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles)
+    
 V1_STRING_PAD_ALIGN = 4
 def nullpads_for_v1_string(num_printable):
     string_len_w_null = num_printable+1
@@ -855,7 +913,7 @@ def nullpads_for_v1_string(num_printable):
     # modular arithmatic
     extra_padding = \
         additional_nulls_required % V1_STRING_PAD_ALIGN
-    assert( 0<= extra_pad < V1_STRING_PAD_ALIGN )
+    assert( 0<= extra_padding < V1_STRING_PAD_ALIGN )
     return 1 + extra_padding
 
 V2_STRING_BY_DEFAULT = False
@@ -863,14 +921,40 @@ V2_STRING_BY_DEFAULT = False
 def replace_strings_in_hex_nyble_stream(
         hex_nyble_stream, v2_strings=V2_STRING_BY_DEFAULT,
         max_string_size=DEFAULT_MAX_STRING_SIZE,
+        pair_stream_already=False,
 ):
-    lookahead_buffer = LookaheadBuffer(
-        make_nyble_data_pair_stream(hex_nyble_stream) )
+    if pair_stream_already:
+        lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
+    else:
+        lookahead_buffer = LookaheadBuffer(
+            make_nyble_data_pair_stream(hex_nyble_stream) )
 
     while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
+        # normally the buffer is empty but hit_end() False
+        # there might be something in the buffer if the previous
+        # pass tried to identify a string and it found inappropriate
+        # nulls after the accepted printable characters came to an end
+        # those remaining characters might be useful
+        if len(lookahead_buffer)>0:
+            while ( len(lookahead_buffer)>0 or
+                    any(nyble_pairs_are_not_printable_ascii_data(elem)
+                        for elem in lookahead_buffer) ):
+                
+                for nyble_pair in \
+                    lookahead_buffer.remove_existing_by_predicate(
+                    nyble_pairs_are_not_printable_ascii_data
+                ):
+                    if nyble_pair[1][NY_ANNO_IS_PAIR]:
+                        yield from expand_nyble_pair_back_to_two_nybles(
+                            nyble_pair)
+                    else:
+                        yield nyble_pair
+
         pred_last, num_printable = lookahead_buffer.grow_by_predicate(
             nyble_pairs_are_printable_ascii_data,
-            n=DEFAULT_MAX_DATA_NYBLES_PER_LINE)
+            n=DEFAULT_MAX_DATA_NYBLES_PER_LINE,
+            include_some_current_as_passing=len(lookahead_buffer)>0,
+        )
         if num_printable == 0:
             if lookahead_buffer.hit_end():
                 break
@@ -880,20 +964,20 @@ def replace_strings_in_hex_nyble_stream(
             yield from (
                 multiple_annotated_nybles_as_data(
                     make_nyble_stream_from_pair_stream(
-                        lookahead_buffer.clear(as_iter) )
+                        lookahead_buffer.clear(as_iter=True) )
                 ) # multiple_annotated_nybles_as_data
             ) # make_nyble_stream_from_pair_stream
             # redundant as while loop has this covered
-            if lookahead_buffer.hit_last():
+            if lookahead_buffer.hit_end():
                 break
         # else num_printable > 0 and not pred_last
-        # and not lookahead_buffer.hit_last()
+        # and not lookahead_buffer.hit_end()
         else:
             chars_and_first_null = lookahead_buffer.clear(as_tuple=True)
 
             # we were stopped by the predicate, so we were not stopped
             # by exhausing the iterator
-            assert not lookahead_buffer.hit_last()
+            assert not lookahead_buffer.hit_end()
             num_nulls_to_terminate = (
                 1 if v2_strings
                 else nullpads_for_v1_string(num_printable)
@@ -912,10 +996,10 @@ def replace_strings_in_hex_nyble_stream(
             all_nulls = (chars_and_first_null[-1],)+additional_nulls
 
             all_expected_nulls_are_data_and_zero = all(
-                (annotated_nyble_is_data(candidate_null[0:2]) and
-                 annotated_nyble_is_data(candidate_null[2:4]) and
-                 candidate_null[0]=='0' and
-                 candidate_null[2]=='0'
+                (annotated_nyble_is_data(candidate_null) and
+                 candidate_null[1][NY_ANNO_IS_DATA] and
+                 candidate_null[0][0]=='0' and
+                 candidate_null[0][1]=='0'
                 )
                 for candidate_null in all_nulls
             ) # all
@@ -928,12 +1012,11 @@ def replace_strings_in_hex_nyble_stream(
             if (all_expected_nulls_are_data_and_zero and
                 len(all_nulls)==num_nulls_to_terminate):
                 concat_string = '"%s"' % ''.join(
-                    ascii_string_char_from_two_nybles(content1, content2)
-                    for content1, annotations1, content2, annotations2
-                    in chars_no_null
+                    ascii_string_char_from_two_nybles( *nyble_char_pair)
+                    for nyble_char_pair, annotations in chars_no_null
                     )
                 yield ( concat_string,
-                        annotate_nyble_as_not_data(annotations1)
+                        annotate_nyble_as_not_data( chars_no_null[0][1] )
                 ) # tuple expression
 
             # if something is wrong dump the bytes we hoped were
@@ -951,8 +1034,13 @@ def replace_strings_in_hex_nyble_stream(
                 # as that would have failed the predicate check,
                 # so we throw that back to the stream as hex nyble data as well
                 first_non_printing = chars_and_first_null[-1]
-                yield first_non_printing[0:2]
-                yield first_non_printing[2:4]
+                if is_nyble_pair(first_non_printing):
+                    yield from multiple_annotated_nybles_as_data(
+                        expand_nyble_pair_back_to_two_nybles(
+                            first_non_printing)
+                    )
+                else:
+                    yield annotate_nyble_as_data(first_non_printing)
 
                 # but any other candidate nulls need to go back into the buffer
                 # as they could very well be the start of printable chars with
@@ -1050,6 +1138,7 @@ def binary_to_annotated_hex(binary_fileobj):
                (False,    # NY_ANNO_IS_DATA
                 i//2,     # NY_ANNO_ADDRESS
                 (i%2==0), # NY_ANNO_FIRST_NYBLE
+                EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
                ) # annotation tuple
         ) # outer tuple
 
@@ -1057,7 +1146,7 @@ def dissassemble_knight_binary(
         binary_fileobj,
         output_fileobj,
         definitions_file=None,
-        string_discovery=False,
+        string_discovery=True,
         ):
     builtin_definitions = definitions_file==None
 
@@ -1079,8 +1168,43 @@ def dissassemble_knight_binary(
         ) # replace_instructions_in_hex_nyble_stream
 
     if string_discovery:
-        after_string_detection_stream = replace_strings_in_hex_nyble_stream(
-            after_instruction_replacement_stream)
+        after_string_detection_stream = list(
+            make_nyble_data_pair_stream(after_instruction_replacement_stream) )
+
+        for blah in after_string_detection_stream:
+            if len(blah)!=2:
+                raise Exception( "bad short stuff " + repr(blah) )
+            if len(blah[1])!=NY_NUM_ANNO:
+                raise Exception( "bad short anno " + repr(blah) )
+            if blah[1][NY_ANNO_IS_PAIR]:
+                if isinstance(blah[0], tuple):
+                    if len(blah[0])!=2:
+                        raise Exception( "mislen pair " + repr(blah) )
+                    if len(blah[1][NY_ANNO_IS_PAIR])!=NY_NUM_ANNO:
+                        raise Exception( "second annono from pair bad " +
+                                         repr(blah) )
+                else:
+                    raise Exception( "annotated pair isn't tuple " + repr(blah))
+        after_string_detection_stream = list(make_nyble_stream_from_pair_stream(
+            after_string_detection_stream))
+        for blah in after_string_detection_stream:
+            if len(blah)!=2:
+                raise Exception( "bad short stuff " + repr(blah) )
+            if len(blah[1])!=NY_NUM_ANNO:
+                raise Exception( "bad short anno " + repr(blah) )
+            assert not blah[1][NY_ANNO_IS_PAIR]
+            
+            #if 0x8a <= blah[1][NY_ANNO_ADDRESS] <= (0x8a+4*8):
+            #    print(hex(blah[1][NY_ANNO_ADDRESS]) + " " + repr(blah))
+        #after_string_detection_stream = list(
+        #    replace_strings_in_hex_nyble_stream(
+        #    iter(after_string_detection_stream),
+        #    pair_stream_already=True,
+        #) )
+        #for blah in after_string_detection_stream:
+        #    if 0x8a < blah[1][NY_ANNO_ADDRESS] < (0x8a+8*30):
+        #        print(repr(blah))
+        after_string_detection_stream = iter(after_string_detection_stream)
     else:
         after_string_detection_stream = after_instruction_replacement_stream
 
@@ -1091,6 +1215,7 @@ def dissassemble_knight_binary(
         n=max_data_nybles_per_line)
 
     for content, annotations in final_stream:
+        #output_fileobj.write(hex(annotations[NY_ANNO_ADDRESS]) + "\t" + content)
         output_fileobj.write(content)
         output_fileobj.write("\n")
 
