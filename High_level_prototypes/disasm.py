@@ -1208,43 +1208,8 @@ def dissassemble_knight_binary(
 
         printable_plus_null_pair_stream = \
             make_pair_stream_with_only_printable_and_null(pair_stream)
-        """
-        for blah in after_string_detection_stream:
-            if len(blah)!=2:
-                raise Exception( "bad short stuff " + repr(blah) )
-            if len(blah[1])!=NY_NUM_ANNO:
-                raise Exception( "bad short anno " + repr(blah) )
-            if blah[1][NY_ANNO_IS_PAIR]:
-                if isinstance(blah[0], tuple):
-                    if len(blah[0])!=2:
-                        raise Exception( "mislen pair " + repr(blah) )
-                    if len(blah[1][NY_ANNO_IS_PAIR])!=NY_NUM_ANNO:
-                        raise Exception( "second annono from pair bad " +
-                                         repr(blah) )
-                else:
-                    raise Exception( "annotated pair isn't tuple " + repr(blah))
-        """
         after_string_detection_stream = make_nyble_stream_from_pair_stream(
             printable_plus_null_pair_stream)
-        """
-        for blah in after_string_detection_stream:
-            if len(blah)!=2:
-                raise Exception( "bad short stuff " + repr(blah) )
-            if len(blah[1])!=NY_NUM_ANNO:
-                raise Exception( "bad short anno " + repr(blah) )
-            assert not blah[1][NY_ANNO_IS_PAIR]
-        """
-            #if 0x8a <= blah[1][NY_ANNO_ADDRESS] <= (0x8a+4*8):
-            #    print(hex(blah[1][NY_ANNO_ADDRESS]) + " " + repr(blah))
-        #after_string_detection_stream = list(
-        #    replace_strings_in_hex_nyble_stream(
-        #    iter(after_string_detection_stream),
-        #    pair_stream_already=True,
-        #) )
-        #for blah in after_string_detection_stream:
-        #    if 0x8a < blah[1][NY_ANNO_ADDRESS] < (0x8a+8*30):
-        #        print(repr(blah))
-        after_string_detection_stream = iter(after_string_detection_stream)
     else:
         after_string_detection_stream = after_instruction_replacement_stream
 
