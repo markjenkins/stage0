@@ -284,6 +284,9 @@ PRINTABLE_MINUS_VT_FF_DQ = {
     for c in printable
     if c not in (VT, FF)
     }
+NULLCHAR = '\x00'
+PRINTABLE_MINUS_VT_FF_DQ_PLUS_NULL = PRINTABLE_MINUS_VT_FF_DQ.intersection(
+    {NULLCHAR} )
 
 NUM_REGISTERS = 16
 
@@ -884,11 +887,22 @@ def ascii_string_char_from_two_nybles(
         nyble1, nyble2, lookset=PRINTABLE_MINUS_VT_FF_DQ):
     return unhexlify(nyble1+nyble2).decode('ascii')
 
+def two_nybles_are_ascii_string_char_in_set(
+        nyble1, nyble2, lookset):
+    return ascii_string_char_from_two_nybles(nyble1, nyble2) in lookset
+
 def two_nybles_are_ascii_string_char(nyble1, nyble2,
                                      lookset=PRINTABLE_MINUS_VT_FF_DQ):
-    return ascii_string_char_from_two_nybles(nyble1,nyble2) in lookset
+    return two_nybles_are_ascii_string_char_in_set(nyble1, nyble2, lookset)
 
-def nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles):
+def two_nybles_are_ascii_string_char_or_null(nyble1, nyble2):
+    return two_nybles_are_ascii_string_char_in_set(
+        nyble1, nyble2,
+        lookset=PRINTABLE_MINUS_VT_FF_DQ_PLUS_NULL)
+
+def nyble_pairs_are_printable_ascii_data(
+        annotated_nyble_or_nybles,
+        test_func=two_nybles_are_ascii_string_char):
     if not is_nyble_data_pair(annotated_nyble_or_nybles):
         return False
 
@@ -896,9 +910,18 @@ def nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles):
       (nyble2, nyble2_annotations), ) = expand_nyble_pair_back_to_two_nybles(
           annotated_nyble_or_nybles)
     try:
-        return two_nybles_are_ascii_string_char(nyble1, nyble2)
+        return test_func(nyble1, nyble2)
     except UnicodeDecodeError:
         return False
+
+def nyble_pairs_are_printable_ascii_data_or_null(
+        annotated_nyble_or_nybles,
+        test_func=two_nybles_are_ascii_string_char_or_null,
+        ):
+    return nyble_pairs_are_printable_ascii_data(
+        annotated_nyble_or_nybles,
+        test_func=two_nybles_are_ascii_string_char_or_null
+        )
 
 def nyble_pairs_are_not_printable_ascii_data(annotated_nyble_or_nybles):
     return not nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles)
@@ -917,6 +940,19 @@ def nullpads_for_v1_string(num_printable):
     return 1 + extra_padding
 
 V2_STRING_BY_DEFAULT = False
+
+def make_pair_stream_with_only_printable_and_null(pair_stream):
+    for nyble_pair in pair_stream:
+        if is_nyble_data_pair(nyble_pair):
+            if not nyble_pairs_are_printable_ascii_data_or_null(nyble_pair):
+                yield from expand_nyble_pair_back_to_two_nybles(nyble_pair)
+            else:
+                yield nyble_pair
+        else:
+            yield nyble_pair
+
+def two_nybles_are_null(nyble1, nyble2):
+    return nyble1=='0' and nyble2=='0'
 
 def replace_strings_in_hex_nyble_stream(
         hex_nyble_stream, v2_strings=V2_STRING_BY_DEFAULT,
@@ -998,8 +1034,7 @@ def replace_strings_in_hex_nyble_stream(
             all_expected_nulls_are_data_and_zero = all(
                 (annotated_nyble_is_data(candidate_null) and
                  candidate_null[1][NY_ANNO_IS_DATA] and
-                 candidate_null[0][0]=='0' and
-                 candidate_null[0][1]=='0'
+                 two_nybles_are_null(*candidate_null[0])
                 )
                 for candidate_null in all_nulls
             ) # all
@@ -1168,9 +1203,12 @@ def dissassemble_knight_binary(
         ) # replace_instructions_in_hex_nyble_stream
 
     if string_discovery:
-        after_string_detection_stream = list(
-            make_nyble_data_pair_stream(after_instruction_replacement_stream) )
+        pair_stream = make_nyble_data_pair_stream(
+            after_instruction_replacement_stream)
 
+        printable_plus_null_pair_stream = \
+            make_pair_stream_with_only_printable_and_null(pair_stream)
+        """
         for blah in after_string_detection_stream:
             if len(blah)!=2:
                 raise Exception( "bad short stuff " + repr(blah) )
@@ -1185,15 +1223,17 @@ def dissassemble_knight_binary(
                                          repr(blah) )
                 else:
                     raise Exception( "annotated pair isn't tuple " + repr(blah))
-        after_string_detection_stream = list(make_nyble_stream_from_pair_stream(
-            after_string_detection_stream))
+        """
+        after_string_detection_stream = make_nyble_stream_from_pair_stream(
+            printable_plus_null_pair_stream)
+        """
         for blah in after_string_detection_stream:
             if len(blah)!=2:
                 raise Exception( "bad short stuff " + repr(blah) )
             if len(blah[1])!=NY_NUM_ANNO:
                 raise Exception( "bad short anno " + repr(blah) )
             assert not blah[1][NY_ANNO_IS_PAIR]
-            
+        """
             #if 0x8a <= blah[1][NY_ANNO_ADDRESS] <= (0x8a+4*8):
             #    print(hex(blah[1][NY_ANNO_ADDRESS]) + " " + repr(blah))
         #after_string_detection_stream = list(
