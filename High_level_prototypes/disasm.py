@@ -831,6 +831,10 @@ def make_nyble_pair(annotated_nyble1, annotated_nyble2):
             annotated_nyble1[1], annotated_nyble2[1])
     ) # tuple
 
+def all_nyble_pairs_in_iterable(nyble_pair_stream):
+    return all(is_nyble_pair(entry)
+               for entry in lookahead_buffer)
+
 def is_nyble_pair(nyble_pair):
     return (isinstance(nyble_pair[0], tuple) and
             nyble_pair[1][NY_ANNO_IS_PAIR])
@@ -955,36 +959,26 @@ def two_nybles_are_null(nyble1, nyble2):
     return nyble1=='0' and nyble2=='0'
 
 def replace_strings_in_hex_nyble_stream(
-        hex_nyble_stream, v2_strings=V2_STRING_BY_DEFAULT,
+        nyble_pair_stream, v2_strings=V2_STRING_BY_DEFAULT,
         max_string_size=DEFAULT_MAX_STRING_SIZE,
-        pair_stream_already=False,
 ):
-    if pair_stream_already:
-        lookahead_buffer = LookaheadBuffer(hex_nyble_stream)
-    else:
-        lookahead_buffer = LookaheadBuffer(
-            make_nyble_data_pair_stream(hex_nyble_stream) )
+    lookahead_buffer = LookaheadBuffer(nyble_pair_stream)
 
     while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
         # normally the buffer is empty but hit_end() False
         # there might be something in the buffer if the previous
         # pass tried to identify a string and it found inappropriate
-        # nulls after the accepted printable characters came to an end
+        # something other than nulls after the accepted printable
+        # characters came to an end
         # those remaining characters might be useful
-        if len(lookahead_buffer)>0:
-            while ( len(lookahead_buffer)>0 or
-                    any(nyble_pairs_are_not_printable_ascii_data(elem)
-                        for elem in lookahead_buffer) ):
-                
-                for nyble_pair in \
-                    lookahead_buffer.remove_existing_by_predicate(
-                    nyble_pairs_are_not_printable_ascii_data
-                ):
-                    if nyble_pair[1][NY_ANNO_IS_PAIR]:
-                        yield from expand_nyble_pair_back_to_two_nybles(
-                            nyble_pair)
-                    else:
-                        yield nyble_pair
+        # but we'll remove any at the front that are not
+        if ( len(lookahead_buffer)>0 and
+             any(nyble_pairs_are_not_printable_ascii_data(elem)
+                 for elem in lookahead_buffer) ):
+            yield from tuple(
+                lookahead_buffer.remove_existing_by_predicate(
+                    nyble_pairs_are_not_printable_ascii_data)
+            )
 
         pred_last, num_printable = lookahead_buffer.grow_by_predicate(
             nyble_pairs_are_printable_ascii_data,
@@ -997,23 +991,23 @@ def replace_strings_in_hex_nyble_stream(
         # if the predicate passed on the last character, that's a problem
         # as we're looking for a terminating null
         elif pred_last:
-            yield from (
-                multiple_annotated_nybles_as_data(
-                    make_nyble_stream_from_pair_stream(
-                        lookahead_buffer.clear(as_iter=True) )
-                ) # multiple_annotated_nybles_as_data
-            ) # make_nyble_stream_from_pair_stream
+            assert all_nyble_pairs_in_iterables(lookahead_buffer)
+            yield from lookahead_buffer.clear(as_iter=True)
             # redundant as while loop has this covered
             if lookahead_buffer.hit_end():
                 break
         # else num_printable > 0 and not pred_last
         # and not lookahead_buffer.hit_end()
         else:
-            chars_and_first_null = lookahead_buffer.clear(as_tuple=True)
-
             # we were stopped by the predicate, so we were not stopped
             # by exhausing the iterator
             assert not lookahead_buffer.hit_end()
+
+            chars_and_first_null = lookahead_buffer.clear(as_tuple=True)
+            print(repr(chars_and_first_null))
+            chars_no_null = chars_and_first_null[:-1]
+            assert all_nyble_pairs_in_iterable(chars_no_null)
+
             num_nulls_to_terminate = (
                 1 if v2_strings
                 else nullpads_for_v1_string(num_printable)
@@ -1031,20 +1025,16 @@ def replace_strings_in_hex_nyble_stream(
 
             all_nulls = (chars_and_first_null[-1],)+additional_nulls
 
-            all_expected_nulls_are_data_and_zero = all(
-                (annotated_nyble_is_data(candidate_null) and
-                 candidate_null[1][NY_ANNO_IS_DATA] and
-                 two_nybles_are_null(*candidate_null[0])
-                )
+            all_expected_nulls_as_they_should_be = all(
+                is_nyble_pair(candidate_null) and
+                two_nybles_are_null(*candidate_null[0])
                 for candidate_null in all_nulls
             ) # all
 
-            chars_no_null = chars_and_first_null[:-1]
-
-            # if everything is solid with the expected nulls, that is
-            # they're data, and there is enough of them to be
+            # if the expected nulls really are null char nyble pairs and
+            # and there is enough of them to be
             # enough padding then we can construct the string and return it
-            if (all_expected_nulls_are_data_and_zero and
+            if (all_expected_nulls_as_they_should_be and
                 len(all_nulls)==num_nulls_to_terminate):
                 concat_string = '"%s"' % ''.join(
                     ascii_string_char_from_two_nybles( *nyble_char_pair)
@@ -1055,27 +1045,18 @@ def replace_strings_in_hex_nyble_stream(
                 ) # tuple expression
 
             # if something is wrong dump the bytes we hoped were
-            # a string back out as a hex nyble data stream
+            # a string back out,
             # but, the bytes the we hoped were terminating and padding
             # null bytes we put back in the LookaheadBuffer so they
             # can be themselves inspected in the next pass through
             # the while loop as the start of a string
             else:
-                yield from multiple_annotated_nybles_as_data(
-                    make_nyble_stream_from_pair_stream(chars_no_null)
-                ) # multiple_annotated_nybles_as_data
-
+                yield from chars_no_null
                 # the first candidate null isn't a printable character
                 # as that would have failed the predicate check,
                 # so we throw that back to the stream as hex nyble data as well
                 first_non_printing = chars_and_first_null[-1]
-                if is_nyble_pair(first_non_printing):
-                    yield from multiple_annotated_nybles_as_data(
-                        expand_nyble_pair_back_to_two_nybles(
-                            first_non_printing)
-                    )
-                else:
-                    yield annotate_nyble_as_data(first_non_printing)
+                yield first_non_printing
 
                 # but any other candidate nulls need to go back into the buffer
                 # as they could very well be the start of printable chars with
@@ -1208,8 +1189,10 @@ def dissassemble_knight_binary(
 
         printable_plus_null_pair_stream = \
             make_pair_stream_with_only_printable_and_null(pair_stream)
-        after_string_detection_stream = make_nyble_stream_from_pair_stream(
+        after_string_replace = replace_strings_in_hex_nyble_stream(
             printable_plus_null_pair_stream)
+        after_string_detection_stream = make_nyble_stream_from_pair_stream(
+            after_string_replace)
     else:
         after_string_detection_stream = after_instruction_replacement_stream
 
