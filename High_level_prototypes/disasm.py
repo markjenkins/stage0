@@ -867,7 +867,9 @@ def is_nyble_data_pair(nyble_pair):
     pair, annotations = nyble_pair
     assert (not annotations[NY_ANNO_IS_PAIR] or
             annotations[NY_ANNO_IS_PAIR][NY_ANNO_IS_DATA])
-    return annotations[NY_ANNO_IS_PAIR]
+    result = bool(annotations[NY_ANNO_IS_PAIR])
+    assert not result or len(nyble_pair[0])==2
+    return result
 
 def expand_nyble_pair_back_to_two_nybles(nyble_pair):
     assert nyble_pair[1][NY_ANNO_IS_PAIR]
