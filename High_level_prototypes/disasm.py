@@ -1004,7 +1004,6 @@ def replace_strings_in_hex_nyble_stream(
             assert not lookahead_buffer.hit_end()
 
             chars_and_first_null = lookahead_buffer.clear(as_tuple=True)
-            print(repr(chars_and_first_null))
             chars_no_null = chars_and_first_null[:-1]
             assert all_nyble_pairs_in_iterable(chars_no_null)
 
