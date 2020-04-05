@@ -991,7 +991,7 @@ def replace_strings_in_hex_nyble_stream(
         # if the predicate passed on the last character, that's a problem
         # as we're looking for a terminating null
         elif pred_last:
-            assert all_nyble_pairs_in_iterables(lookahead_buffer)
+            assert all_nyble_pairs_in_iterable(lookahead_buffer)
             yield from lookahead_buffer.clear(as_iter=True)
             # redundant as while loop has this covered
             if lookahead_buffer.hit_end():
