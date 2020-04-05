@@ -864,10 +864,11 @@ def make_nyble_data_pair_stream(nyble_data_stream):
             break # redundant, while invariant has us covered
 
 def is_nyble_data_pair(nyble_pair):
+    result = is_nyble_pair(nyble_pair)
     pair, annotations = nyble_pair
     assert (not annotations[NY_ANNO_IS_PAIR] or
             annotations[NY_ANNO_IS_PAIR][NY_ANNO_IS_DATA])
-    result = bool(annotations[NY_ANNO_IS_PAIR])
+    assert not result or bool(annotations[NY_ANNO_IS_PAIR])
     assert not result or len(nyble_pair[0])==2
     return result
 
