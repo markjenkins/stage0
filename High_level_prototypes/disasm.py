@@ -1192,11 +1192,11 @@ def dissassemble_knight_binary(
         printable_plus_null_pair_stream = \
             make_pair_stream_with_only_printable_and_null(pair_stream)
 
-        # skip over doing any actual string detection with
-        # with replace_strings_in_hex_nyble_stream()
-
+        w_string_pair_stream = replace_strings_in_hex_nyble_stream(
+            printable_plus_null_pair_stream
+        )
         after_string_detection_stream = make_nyble_stream_from_pair_stream(
-            printable_plus_null_pair_stream)
+            w_string_pair_stream)
     else:
         after_string_detection_stream = after_instruction_replacement_stream
 
