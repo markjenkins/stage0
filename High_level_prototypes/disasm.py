@@ -1206,7 +1206,6 @@ def dissassemble_knight_binary(
         n=max_data_nybles_per_line)
 
     for content, annotations in final_stream:
-        #output_fileobj.write(hex(annotations[NY_ANNO_ADDRESS]) + "\t" + content)
         output_fileobj.write(content)
         output_fileobj.write("\n")
 
