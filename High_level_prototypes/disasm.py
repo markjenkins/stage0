@@ -833,7 +833,7 @@ def make_nyble_pair(annotated_nyble1, annotated_nyble2):
 
 def all_nyble_pairs_in_iterable(nyble_pair_stream):
     return all(is_nyble_pair(entry)
-               for entry in lookahead_buffer)
+               for entry in nyble_pair_stream)
 
 def is_nyble_pair(nyble_pair):
     return (isinstance(nyble_pair[0], tuple) and
