@@ -724,7 +724,7 @@ def construct_annotated_instruction(
     )
 
 def replace_instructions_in_hex_nyble_stream(
-        hex_nyble_stream, instruction_structure):
+        hex_nyble_stream, instruction_structure, ignore_NOP=False):
     # any annotated nybles we pull from hex_nyble_stream might get
     # tossed into this lookahead buffer [first in first out /FIFO with
     # append() and popleft() ] if it turns out that oops, they were not what
@@ -808,13 +808,20 @@ def replace_instructions_in_hex_nyble_stream(
                         # and we checked the result
                         operand_nybles_consumed = lookahead_buffer.next_n(
                             operand_len, grow=False)
-                        yield construct_annotated_instruction(
+                        annotated_instruction = construct_annotated_instruction(
                             instruction_structure,
                             instruction_prefix,
                             rest_of_opcode_nybles_hex,
                             operand_nybles_consumed,
                             first_nyble_annotations =
                               prefix_nybles_w_annotations[0][1] )
+                        if annotated_instruction[0] == "NOP" and ignore_NOP:
+                            yield from multiple_annotated_nybles_as_data(
+                                prefix_nybles_w_annotations)
+                            yield from multiple_annotated_nybles_as_data(
+                                rest_of_opcode_nybles)
+                        else:
+                            yield annotated_instruction
 
 def enhance_annotations_to_include_sub_annotations_from_pair(
         ny_annotations, sub_annotations):
@@ -1166,6 +1173,8 @@ def dissassemble_knight_binary(
         definitions_file=None,
         string_discovery=True,
         ):
+    prioritize_mod_4_string_w_4_null_over_nop = True
+
     builtin_definitions = definitions_file==None
 
     if builtin_definitions:
@@ -1182,7 +1191,8 @@ def dissassemble_knight_binary(
     after_instruction_replacement_stream = \
         replace_instructions_in_hex_nyble_stream(
             nyble_stream,
-            instruction_structure
+            instruction_structure,
+            ignore_NOP=prioritize_mod_4_string_w_4_null_over_nop,
         ) # replace_instructions_in_hex_nyble_stream
 
     if string_discovery:
@@ -1201,13 +1211,20 @@ def dissassemble_knight_binary(
         after_string_detection_stream = after_instruction_replacement_stream
 
     # configurable in a future version
-    max_data_nybles_per_line = DEFAULT_MAX_DATA_NYBLES_PER_LINE
+    if prioritize_mod_4_string_w_4_null_over_nop:
+        max_data_nybles_per_line = 8
+    else:
+        max_data_nybles_per_line = DEFAULT_MAX_DATA_NYBLES_PER_LINE
+
     final_stream = consolidate_data_into_chunks_in_hex_nyble_stream(
         after_string_detection_stream,
         n=max_data_nybles_per_line)
 
     for content, annotations in final_stream:
-        output_fileobj.write(content)
+        if prioritize_mod_4_string_w_4_null_over_nop and content=="'00000000'":
+            output_fileobj.write("NOP")
+        else:
+            output_fileobj.write(content)
         output_fileobj.write("\n")
 
 def get_stage0_knight_defs_filename():
