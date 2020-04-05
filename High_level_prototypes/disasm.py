@@ -1162,7 +1162,7 @@ def dissassemble_knight_binary(
         binary_fileobj,
         output_fileobj,
         definitions_file=None,
-        string_discovery=True,
+        string_discovery=False,
         ):
     builtin_definitions = definitions_file==None
 
