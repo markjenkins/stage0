@@ -985,7 +985,7 @@ def replace_strings_in_hex_nyble_stream(
 
         pred_last, num_printable = lookahead_buffer.grow_by_predicate(
             nyble_pairs_are_printable_ascii_data,
-            n=DEFAULT_MAX_DATA_NYBLES_PER_LINE,
+            n=max_string_size,
             include_some_current_as_passing=len(lookahead_buffer)>0,
         )
         if num_printable == 0:
