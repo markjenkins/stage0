@@ -273,7 +273,7 @@ def get_macros_defined_and_add_to_sym_table(f, symbols=None):
 
 # Everything below is the unique code of disasm.py
 
-DEFAULT_MAX_DATA_NYBLES_PER_LINE = 4
+DEFAULT_MAX_DATA_NYBLES_PER_LINE = 8
 DEFAULT_MAX_STRING_SIZE = 1024*1024*1024*256 # 256 MB
 
 VT = '\x0B'
