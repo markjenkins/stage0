@@ -1163,7 +1163,7 @@ def dissassemble_knight_binary(
         binary_fileobj,
         output_fileobj,
         definitions_file=None,
-        string_discovery=False,
+        string_discovery=True,
         ):
     builtin_definitions = definitions_file==None
 
@@ -1190,10 +1190,12 @@ def dissassemble_knight_binary(
 
         printable_plus_null_pair_stream = \
             make_pair_stream_with_only_printable_and_null(pair_stream)
-        after_string_replace = replace_strings_in_hex_nyble_stream(
-            printable_plus_null_pair_stream)
+
+        # skip over doing any actual string detection with
+        # with replace_strings_in_hex_nyble_stream()
+
         after_string_detection_stream = make_nyble_stream_from_pair_stream(
-            after_string_replace)
+            pair_stream)
     else:
         after_string_detection_stream = after_instruction_replacement_stream
 
