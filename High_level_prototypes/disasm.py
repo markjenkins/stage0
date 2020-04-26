@@ -1285,8 +1285,8 @@ if __name__ == "__main__":
 
     dissassemble_knight_binary(
         args.inputfile, stdout,
+        definitions_file=args.definitions_file,
         string_null_pad_align=args.string_null_pad_align,
         address_printing=args.address_mode,
-        definitions_file=args.definitions_file,
     )
     args.inputfile.close()
