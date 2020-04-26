@@ -274,6 +274,12 @@ def get_macros_defined_and_add_to_sym_table(f, symbols=None):
 
 # Everything below is the unique code of disasm.py
 
+V1_STRING_PAD_ALIGN = 4
+V2_STRING_PAD_ALIGN = 1
+NULL_STRING_PAD_OPTIONS = [V1_STRING_PAD_ALIGN, V2_STRING_PAD_ALIGN]
+DEFAULT_STRING_NULL_PAD_ALIGN = V1_STRING_PAD_ALIGN
+V2_STRING_BY_DEFAULT = DEFAULT_STRING_NULL_PAD_ALIGN == V2_STRING_PAD_ALIGN
+
 DEFAULT_MAX_DATA_NYBLES_PER_LINE = 8
 DEFAULT_MAX_STRING_SIZE = 1024*1024*1024*256 # 256 MB
 
@@ -940,8 +946,7 @@ def nyble_pairs_are_printable_ascii_data_or_null(
 
 def nyble_pairs_are_not_printable_ascii_data(annotated_nyble_or_nybles):
     return not nyble_pairs_are_printable_ascii_data(annotated_nyble_or_nybles)
-    
-V1_STRING_PAD_ALIGN = 4
+
 def nullpads_for_v1_string(num_printable):
     string_len_w_null = num_printable+1
     # modular arithmatic can tell us how much longer than the alignment
@@ -953,8 +958,6 @@ def nullpads_for_v1_string(num_printable):
         additional_nulls_required % V1_STRING_PAD_ALIGN
     assert( 0<= extra_padding < V1_STRING_PAD_ALIGN )
     return 1 + extra_padding
-
-V2_STRING_BY_DEFAULT = False
 
 def make_pair_stream_with_only_printable_and_null(pair_stream):
     for nyble_pair in pair_stream:
@@ -1173,8 +1176,10 @@ def dissassemble_knight_binary(
         output_fileobj,
         definitions_file=None,
         string_discovery=True,
+        string_null_pad_align=DEFAULT_STRING_NULL_PAD_ALIGN,
         ):
-    prioritize_mod_4_string_w_4_null_over_nop = True
+    prioritize_mod_4_string_w_4_null_over_nop = \
+        string_null_pad_align==V1_STRING_PAD_ALIGN
 
     builtin_definitions = definitions_file==None
 
@@ -1204,7 +1209,8 @@ def dissassemble_knight_binary(
             make_pair_stream_with_only_printable_and_null(pair_stream)
 
         w_string_pair_stream = replace_strings_in_hex_nyble_stream(
-            printable_plus_null_pair_stream
+            printable_plus_null_pair_stream,
+            v2_strings=string_null_pad_align==V2_STRING_PAD_ALIGN
         )
         after_string_detection_stream = make_nyble_stream_from_pair_stream(
             w_string_pair_stream)
@@ -1234,10 +1240,21 @@ def get_stage0_knight_defs_filename():
 if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument(
+        "-p", "--string-null-pad-align",
+        type=int, choices=NULL_STRING_PAD_OPTIONS,
+        default=DEFAULT_STRING_NULL_PAD_ALIGN,
+        help="4 to use null padding to align strings to a multiple of 4 bytes "
+        "as was the case in the original v1 knight binary format or 1 to "
+        "only have one null at the end of strings, the v2 knight binary format"
+    )
+    argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
     args = argparser.parse_args()
 
-    dissassemble_knight_binary(args.inputfile, stdout)
+    dissassemble_knight_binary(
+        args.inputfile, stdout,
+        string_null_pad_align=args.string_null_pad_align,
+    )
     args.inputfile.close()
