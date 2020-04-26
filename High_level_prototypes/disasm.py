@@ -280,6 +280,14 @@ NULL_STRING_PAD_OPTIONS = [V1_STRING_PAD_ALIGN, V2_STRING_PAD_ALIGN]
 DEFAULT_STRING_NULL_PAD_ALIGN = V1_STRING_PAD_ALIGN
 V2_STRING_BY_DEFAULT = DEFAULT_STRING_NULL_PAD_ALIGN == V2_STRING_PAD_ALIGN
 
+ADDRESS_PRINT_MODE_HEX = "hex"
+ADDRESS_PRINT_MODE_NONE = "none"
+ADDRESS_PRINT_MODE_OPTIONS = [ADDRESS_PRINT_MODE_HEX, ADDRESS_PRINT_MODE_NONE]
+DEFAULT_ADDRESS_PRINT_MODE = ADDRESS_PRINT_MODE_HEX
+
+HEX_MODE_ADDRESS_FORMAT = "%.8X"
+OUTPUT_COLUMN_SEPERATOR = "\t"
+
 DEFAULT_MAX_DATA_NYBLES_PER_LINE = 8
 DEFAULT_MAX_STRING_SIZE = 1024*1024*1024*256 # 256 MB
 
@@ -1177,6 +1185,7 @@ def dissassemble_knight_binary(
         definitions_file=None,
         string_discovery=True,
         string_null_pad_align=DEFAULT_STRING_NULL_PAD_ALIGN,
+        address_printing=DEFAULT_ADDRESS_PRINT_MODE,
         ):
     prioritize_mod_4_string_w_4_null_over_nop = \
         string_null_pad_align==V1_STRING_PAD_ALIGN
@@ -1231,6 +1240,10 @@ def dissassemble_knight_binary(
         if prioritize_mod_4_string_w_4_null_over_nop and content=="'00000000'":
             output_fileobj.write("NOP")
         else:
+            if address_printing==ADDRESS_PRINT_MODE_HEX:
+                output_fileobj.write(
+                    HEX_MODE_ADDRESS_FORMAT % annotations[NY_ANNO_ADDRESS])
+                output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
             output_fileobj.write(content)
         output_fileobj.write("\n")
 
@@ -1248,6 +1261,12 @@ if __name__ == "__main__":
         "only have one null at the end of strings, the v2 knight binary format"
     )
     argparser.add_argument(
+        "-a", "--address-mode", type=str,
+        default=DEFAULT_ADDRESS_PRINT_MODE, choices=ADDRESS_PRINT_MODE_OPTIONS,
+        help="hex for addresses to be printed as a first column in hex "
+        "none to not print an address column"
+        )
+    argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
@@ -1256,5 +1275,6 @@ if __name__ == "__main__":
     dissassemble_knight_binary(
         args.inputfile, stdout,
         string_null_pad_align=args.string_null_pad_align,
+        address_printing=args.address_mode,
     )
     args.inputfile.close()

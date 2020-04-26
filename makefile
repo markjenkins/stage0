@@ -210,8 +210,8 @@ testdisasmpy: ALL-ROMS M0-compact vm
 stage1_assembler-1 stage1_assembler-2 CAT SET M0 M0-compact DEHEX \
 cc_x86 forth lisp"; \
 	for rom in $$ROM_LIST; do \
-	    ./High_level_prototypes/disasm.py roms/"$$rom" > \
-	        "$$rom".TEMP.dis.s; \
+	    ./High_level_prototypes/disasm.py --address-mode none \
+		roms/"$$rom" > "$$rom".TEMP.dis.s; \
 	    cat High_level_prototypes/defs "$$rom".TEMP.dis.s > \
 	        "$$rom".TEMP.dis_cat.s; \
 	    rm "$$rom".TEMP.dis.s; \
