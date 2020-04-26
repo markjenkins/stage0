@@ -20,10 +20,11 @@ from __future__ import division
 
 from os.path import dirname, join as path_join
 from binascii import hexlify, unhexlify
-from sys import argv, stdout
+from sys import stdout
 from collections import deque
 from itertools import count
 from string import printable
+from argparse import ArgumentParser
 
 # The following globals, class and function definitions are copy-pasted
 # from M1.py in https://github.com/markjenkins/knightpies
@@ -1231,5 +1232,9 @@ def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
 
 if __name__ == "__main__":
-    with open(argv[1], 'rb') as f:
+    argparser = ArgumentParser()
+    argparser.add_argument("inputfile", help="file to disassemble")
+    args = argparser.parse_args()
+
+    with open(args.inputfile, 'rb') as f:
         dissassemble_knight_binary(f, stdout)
