@@ -1270,6 +1270,13 @@ if __name__ == "__main__":
         )
 
     argparser.add_argument(
+        "-D", "--definitions-file", type=str,
+        #default=None,  # this is implicit
+        help="A file with the assembler definitions, by default this is "
+        "High_level_prototypes/defs"
+        )
+
+    argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
@@ -1280,5 +1287,6 @@ if __name__ == "__main__":
         args.inputfile, stdout,
         string_null_pad_align=args.string_null_pad_align,
         address_printing=args.address_mode,
+        definitions_file=args.definitions_file,
     )
     args.inputfile.close()
