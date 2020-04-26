@@ -1277,6 +1277,18 @@ if __name__ == "__main__":
         )
 
     argparser.add_argument(
+        "--disable-string", dest="enable_string", action="store_false",
+        help="disable string detection"
+        )
+    argparser.add_argument(
+        "--enable-string", dest="enable_string", action="store_true",
+        default=True,
+        help="opposite of --disable-string, enable string detection. "
+        "String detection is on by default, so you only need this if you "
+        "need to be really explicit somewhere"
+        )
+
+    argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
@@ -1286,6 +1298,7 @@ if __name__ == "__main__":
     dissassemble_knight_binary(
         args.inputfile, stdout,
         definitions_file=args.definitions_file,
+        string_discovery=args.enable_string,
         string_null_pad_align=args.string_null_pad_align,
         address_printing=args.address_mode,
     )
