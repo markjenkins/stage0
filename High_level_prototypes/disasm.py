@@ -1252,6 +1252,7 @@ def get_stage0_knight_defs_filename():
 
 if __name__ == "__main__":
     argparser = ArgumentParser()
+
     argparser.add_argument(
         "-p", "--string-null-pad-align",
         type=int, choices=NULL_STRING_PAD_OPTIONS,
@@ -1260,16 +1261,19 @@ if __name__ == "__main__":
         "as was the case in the original v1 knight binary format or 1 to "
         "only have one null at the end of strings, the v2 knight binary format"
     )
+
     argparser.add_argument(
         "-a", "--address-mode", type=str,
         default=DEFAULT_ADDRESS_PRINT_MODE, choices=ADDRESS_PRINT_MODE_OPTIONS,
         help="hex for addresses to be printed as a first column in hex "
         "none to not print an address column"
         )
+
     argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
+
     args = argparser.parse_args()
 
     dissassemble_knight_binary(
