@@ -24,7 +24,7 @@ from sys import stdout
 from collections import deque
 from itertools import count
 from string import printable
-from argparse import ArgumentParser
+from argparse import ArgumentParser, FileType
 
 # The following globals, class and function definitions are copy-pasted
 # from M1.py in https://github.com/markjenkins/knightpies
@@ -1233,8 +1233,11 @@ def get_stage0_knight_defs_filename():
 
 if __name__ == "__main__":
     argparser = ArgumentParser()
-    argparser.add_argument("inputfile", help="file to disassemble")
+    argparser.add_argument(
+        "inputfile", help="file to disassemble",
+        type=FileType("rb")
+    )
     args = argparser.parse_args()
 
-    with open(args.inputfile, 'rb') as f:
-        dissassemble_knight_binary(f, stdout)
+    dissassemble_knight_binary(args.inputfile, stdout)
+    args.inputfile.close()
