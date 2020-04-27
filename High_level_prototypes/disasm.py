@@ -288,7 +288,8 @@ DEFAULT_ADDRESS_PRINT_MODE = ADDRESS_PRINT_MODE_HEX
 HEX_MODE_ADDRESS_FORMAT = "%.8X"
 OUTPUT_COLUMN_SEPERATOR = "\t"
 
-DEFAULT_MAX_DATA_NYBLES_PER_LINE = 8
+DEFAULT_MAX_DATA_BYTES_PER_LINE = 4
+DEFAULT_MAX_DATA_NYBLES_PER_LINE = DEFAULT_MAX_DATA_BYTES_PER_LINE*2 # 4*2==8
 DEFAULT_MAX_STRING_SIZE = 1024*1024*1024*256 # 256 MB
 
 VT = '\x0B'
@@ -1186,6 +1187,7 @@ def dissassemble_knight_binary(
         string_discovery=True,
         string_null_pad_align=DEFAULT_STRING_NULL_PAD_ALIGN,
         address_printing=DEFAULT_ADDRESS_PRINT_MODE,
+        max_data_bytes_per_line=DEFAULT_MAX_DATA_BYTES_PER_LINE,
         ):
     prioritize_mod_4_string_w_4_null_over_nop = \
         string_null_pad_align==V1_STRING_PAD_ALIGN
@@ -1226,11 +1228,34 @@ def dissassemble_knight_binary(
     else:
         after_string_detection_stream = after_instruction_replacement_stream
 
-    # configurable in a future version
+    # whenever we're doing version 1 strings that are null padded to a multiple
+    # of 4 bytes there very well may be four null bytes found as
+    # 0x00000000 after a string
+    #
+    # this is also the NOP opcode so the fact that we search for instructions
+    # first can be a problem
+    #
+    # as such any time version 1 strings are being processed
+    # prioritize_mod_4_string_w_4_null_over_nop is true and we ignore
+    # NOP on the first instruction pass and restore it later if not absorbed
+    # into a string
+    #
+    # at this point in the code we've already done instruction detection
+    # and string detection and we're setting max_data_nybles_per_line,
+    # a paramater for the printing of data (not code, not strings)
+    #
+    # the way we restore NOPs that were not absorbed into strings isn't
+    # particularly elegant, it's done below after data is clustered
+    # into line sized chunks, as such the paramater for that
+    # max_data_nybles_per_line has to be 8 nybles (4 bytes)
     if prioritize_mod_4_string_w_4_null_over_nop:
         max_data_nybles_per_line = 8
+    # but, if we're not worried about NOP being substituted, as would be
+    # be the case if string_null_pad_align==V2_STRING_PAD_ALIGN
+    # (and prioritize_mod_4_string_w_4_null_over_nop==False)
+    # then our data bytes per line becomes a user-provided paramater
     else:
-        max_data_nybles_per_line = DEFAULT_MAX_DATA_NYBLES_PER_LINE
+        max_data_nybles_per_line = max_data_bytes_per_line*2
 
     final_stream = consolidate_data_into_chunks_in_hex_nyble_stream(
         after_string_detection_stream,
@@ -1289,11 +1314,23 @@ if __name__ == "__main__":
         )
 
     argparser.add_argument(
+        "--max-data-bytes-per-line", type=int,
+        default=DEFAULT_MAX_DATA_BYTES_PER_LINE,
+        help="Anything that's not code or string is data, this sets how"
+        "many bytes of data are printed at most per line (default 4). "
+        "Due to a kludge, only useful when --string-null-pad-align 1"
+        )
+
+    argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
 
     args = argparser.parse_args()
+
+    # safety check on args.max_data_bytes_per_line to ensure the value
+    # used is > 0
+    max_data_bytes_per_line = max(1, args.max_data_bytes_per_line)
 
     dissassemble_knight_binary(
         args.inputfile, stdout,
@@ -1301,5 +1338,6 @@ if __name__ == "__main__":
         string_discovery=args.enable_string,
         string_null_pad_align=args.string_null_pad_align,
         address_printing=args.address_mode,
+        max_data_bytes_per_line=max_data_bytes_per_line,
     )
     args.inputfile.close()
