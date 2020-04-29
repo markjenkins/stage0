@@ -666,6 +666,10 @@ NY_NUM_ANNO = 4
 
 EMPTY_NY_ANNO_IS_PAIR = ()
 
+def construct_annotation(*args):
+    assert len(args)==NY_NUM_ANNO
+    return tuple(args)
+
 def annotate_nyble_as_not_data(nyble_annotations):
     return (nyble_annotations[0:NY_ANNO_IS_DATA] +
             (False, ) + # NY_ANNO_IS_DATA
@@ -732,10 +736,11 @@ def construct_annotated_instruction(
     ).strip() # strip() covers case of immediate_string==''
 
     return (full_instruction_string,
-            (False, # NY_ANNO_IS_DATA, it's not data its an instruction!
-             first_nyble_annotations[NY_ANNO_ADDRESS], # NY_ANNO_ADDRESS
-             True, # NY_ANNO_FIRST_NYBLE, instructions start on byte boundary
-             EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
+            construct_annotation(
+                False, # NY_ANNO_IS_DATA, it's not data its an instruction!
+                first_nyble_annotations[NY_ANNO_ADDRESS], # NY_ANNO_ADDRESS
+                True, # NY_ANNO_FIRST_NYBLE, instructions start on byte boundary
+                EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
             )
     )
 
@@ -1173,11 +1178,12 @@ def binary_to_annotated_hex(binary_fileobj):
     # nyble is int when iterating over bytes from hexlify, hence chr(nyble)
     for i, nyble in enumerate(hexlify(binary_fileobj.read())):
         yield (chr(nyble).upper(),
-               (False,    # NY_ANNO_IS_DATA
-                i//2,     # NY_ANNO_ADDRESS
-                (i%2==0), # NY_ANNO_FIRST_NYBLE
-                EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
-               ) # annotation tuple
+               construct_annotation(
+                   False,    # NY_ANNO_IS_DATA
+                   i//2,     # NY_ANNO_ADDRESS
+                   (i%2==0), # NY_ANNO_FIRST_NYBLE
+                   EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
+               ) # construct_annotation
         ) # outer tuple
 
 def dissassemble_knight_binary(
