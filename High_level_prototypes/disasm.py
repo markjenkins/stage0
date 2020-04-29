@@ -660,9 +660,9 @@ def get_knight_instruction_structure_from_file(
 
     return finished_instruction_struct
 
-NY_NUM_ANNO = 4
+NY_NUM_ANNO = 5
 (NY_ANNO_IS_DATA, NY_ANNO_ADDRESS,
- NY_ANNO_FIRST_NYBLE, NY_ANNO_IS_PAIR )= range(NY_NUM_ANNO)
+ NY_ANNO_FIRST_NYBLE, NY_ANNO_IS_PAIR, NY_ANNO_HEX )= range(NY_NUM_ANNO)
 
 EMPTY_NY_ANNO_IS_PAIR = ()
 
@@ -717,11 +717,13 @@ def construct_annotated_instruction(
         immediate_nybles_string = ''.join(
             immediate_hex_nyble
             for immediate_hex_nyble, immediate_annotation in immediate_nybles)
+        immediate_string_hex = immediate_nybles_string
         immediate_unsigned_value = int(immediate_nybles_string, 16)
         immediate_string = "0x%.4X" % immediate_unsigned_value
         reg_operand_nybles = operand_nybles_annotated[:-immediate_len]
     else:
         immediate_nybles = ()
+        immediate_string_hex = ''
         immediate_unsigned_value = None
         immediate_string = ''
         reg_operand_nybles = operand_nybles_annotated
@@ -741,6 +743,7 @@ def construct_annotated_instruction(
                 first_nyble_annotations[NY_ANNO_ADDRESS], # NY_ANNO_ADDRESS
                 True, # NY_ANNO_FIRST_NYBLE, instructions start on byte boundary
                 EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
+                opcode_fullhex + immediate_string_hex, # NY_ANNO_HEX
             )
     )
 
@@ -1183,6 +1186,7 @@ def binary_to_annotated_hex(binary_fileobj):
                    i//2,     # NY_ANNO_ADDRESS
                    (i%2==0), # NY_ANNO_FIRST_NYBLE
                    EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
+                   chr(nyble).upper(), # NY_ANNO_HEX
                ) # construct_annotation
         ) # outer tuple
 
