@@ -1286,6 +1286,14 @@ def dissassemble_knight_binary(
                     HEX_MODE_ADDRESS_FORMAT % annotations[NY_ANNO_ADDRESS])
                 output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
             output_fileobj.write(content)
+        if not annotations[NY_ANNO_IS_DATA]:
+            output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
+            output_fileobj.write('#')
+            if content[0] == '"':
+                output_fileobj.write("STRING")
+            else:
+                output_fileobj.write(" ")
+                output_fileobj.write(annotations[NY_ANNO_HEX])
         output_fileobj.write("\n")
 
 def get_stage0_knight_defs_filename():
