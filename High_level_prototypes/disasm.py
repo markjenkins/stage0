@@ -733,6 +733,11 @@ def construct_annotated_instruction(
         for operand_in_hex, operand_annotations in reg_operand_nybles
         )
 
+    operands_in_hex = ''.join(
+        operand_in_hex
+        for operand_in_hex, operand_annotations in reg_operand_nybles
+        )
+
     full_instruction_string = (# start expression for string
         "%s %s %s" % (opcode_name, register_operands_string, immediate_string)
     ).strip() # strip() covers case of immediate_string==''
@@ -743,7 +748,8 @@ def construct_annotated_instruction(
                 first_nyble_annotations[NY_ANNO_ADDRESS], # NY_ANNO_ADDRESS
                 True, # NY_ANNO_FIRST_NYBLE, instructions start on byte boundary
                 EMPTY_NY_ANNO_IS_PAIR, # NY_ANNO_IS_PAIR
-                opcode_fullhex + immediate_string_hex, # NY_ANNO_HEX
+                opcode_fullhex + operands_in_hex +
+                immediate_string_hex, # NY_ANNO_HEX
             )
     )
 
