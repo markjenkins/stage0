@@ -1198,6 +1198,12 @@ def binary_to_annotated_hex(binary_fileobj):
                ) # construct_annotation
         ) # outer tuple
 
+def format_string_content_suppress_newline(output_string):
+    return output_string.replace("\n", "0x%.1X " % ord("\n"))
+
+def format_not_at_all(string_to_not_format):
+    return string_to_not_format
+
 def dissassemble_knight_binary(
         binary_fileobj,
         output_fileobj,
@@ -1210,6 +1216,11 @@ def dissassemble_knight_binary(
         ):
     prioritize_mod_4_string_w_4_null_over_nop = \
         string_null_pad_align==V1_STRING_PAD_ALIGN
+
+    string_formatter = (
+        format_string_content_suppress_newline
+        if suppress_newline_in_string else format_not_at_all
+        )
 
     builtin_definitions = definitions_file==None
 
@@ -1290,9 +1301,9 @@ def dissassemble_knight_binary(
 
         if prioritize_mod_4_string_w_4_null_over_nop and content=="'00000000'":
             output_fileobj.write("NOP")
+        elif is_string:
+            output_fileobj.write(string_formatter(content))
         else:
-            if suppress_newline_in_string and is_string:
-                content = content.replace("\n", "0x%.1X " % ord("\n"))
             output_fileobj.write(content)
         output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
         output_fileobj.write('#')
