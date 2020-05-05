@@ -1282,13 +1282,15 @@ def dissassemble_knight_binary(
 
     for content, annotations in final_stream:
         is_string = content[0] == '"'
+
+        if address_printing==ADDRESS_PRINT_MODE_HEX:
+            output_fileobj.write(
+                HEX_MODE_ADDRESS_FORMAT % annotations[NY_ANNO_ADDRESS])
+            output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
+
         if prioritize_mod_4_string_w_4_null_over_nop and content=="'00000000'":
             output_fileobj.write("NOP")
         else:
-            if address_printing==ADDRESS_PRINT_MODE_HEX:
-                output_fileobj.write(
-                    HEX_MODE_ADDRESS_FORMAT % annotations[NY_ANNO_ADDRESS])
-                output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
             if suppress_newline_in_string and is_string:
                 content = content.replace("\n", "0x%.1X " % ord("\n"))
             output_fileobj.write(content)
