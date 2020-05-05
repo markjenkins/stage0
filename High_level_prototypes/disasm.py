@@ -292,6 +292,8 @@ DEFAULT_MAX_DATA_BYTES_PER_LINE = 4
 DEFAULT_MAX_DATA_NYBLES_PER_LINE = DEFAULT_MAX_DATA_BYTES_PER_LINE*2 # 4*2==8
 DEFAULT_MAX_STRING_SIZE = 1024*1024*1024*256 # 256 MB
 
+DEFAULT_SUPPRESS_NEWLINE_IN_STRING = False
+
 VT = '\x0B'
 FF = '\x0C'
 DQ = '"'
@@ -1204,6 +1206,7 @@ def dissassemble_knight_binary(
         string_null_pad_align=DEFAULT_STRING_NULL_PAD_ALIGN,
         address_printing=DEFAULT_ADDRESS_PRINT_MODE,
         max_data_bytes_per_line=DEFAULT_MAX_DATA_BYTES_PER_LINE,
+        suppress_newline_in_string=DEFAULT_SUPPRESS_NEWLINE_IN_STRING,
         ):
     prioritize_mod_4_string_w_4_null_over_nop = \
         string_null_pad_align==V1_STRING_PAD_ALIGN
@@ -1278,6 +1281,7 @@ def dissassemble_knight_binary(
         n=max_data_nybles_per_line)
 
     for content, annotations in final_stream:
+        is_string = content[0] == '"'
         if prioritize_mod_4_string_w_4_null_over_nop and content=="'00000000'":
             output_fileobj.write("NOP")
         else:
@@ -1285,10 +1289,12 @@ def dissassemble_knight_binary(
                 output_fileobj.write(
                     HEX_MODE_ADDRESS_FORMAT % annotations[NY_ANNO_ADDRESS])
                 output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
+            if suppress_newline_in_string and is_string:
+                content = content.replace("\n", "0x%.1X " % ord("\n"))
             output_fileobj.write(content)
         output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
         output_fileobj.write('#')
-        if content[0] == '"':
+        if is_string:
             output_fileobj.write("STRING")
         elif annotations[NY_ANNO_IS_DATA]:
             output_fileobj.write("DATA")
@@ -1347,6 +1353,12 @@ if __name__ == "__main__":
         )
 
     argparser.add_argument(
+        "--suppress-newline-in-string",
+        default=DEFAULT_SUPPRESS_NEWLINE_IN_STRING, action="store_true",
+        help="For the Knight.py cherrypy debugger, don't break up newlines"
+        )
+
+    argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
@@ -1364,5 +1376,6 @@ if __name__ == "__main__":
         string_null_pad_align=args.string_null_pad_align,
         address_printing=args.address_mode,
         max_data_bytes_per_line=max_data_bytes_per_line,
+        suppress_newline_in_string=args.suppress_newline_in_string,
     )
     args.inputfile.close()
