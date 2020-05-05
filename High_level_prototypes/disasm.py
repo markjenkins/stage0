@@ -1305,6 +1305,7 @@ def dissassemble_knight_binary(
             output_fileobj.write(string_formatter(content))
         else:
             output_fileobj.write(content)
+
         output_fileobj.write(OUTPUT_COLUMN_SEPERATOR)
         output_fileobj.write('#')
         if is_string:
