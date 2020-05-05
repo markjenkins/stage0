@@ -1198,8 +1198,11 @@ def binary_to_annotated_hex(binary_fileobj):
                ) # construct_annotation
         ) # outer tuple
 
-def format_string_content_suppress_newline(output_string):
-    return output_string.replace("\n", "0x%.1X " % ord("\n"))
+NEWLINE_TAB_SUPRESS_HEX_FORMAT = "0x%.1X "
+def format_string_content_suppress_newline_tab(output_string):
+    return output_string.replace(
+        "\n", NEWLINE_TAB_SUPRESS_HEX_FORMAT % ord("\n")).replace(
+            "\t", NEWLINE_TAB_SUPRESS_HEX_FORMAT % ord("\t") )
 
 def format_not_at_all(string_to_not_format):
     return string_to_not_format
@@ -1212,14 +1215,14 @@ def dissassemble_knight_binary(
         string_null_pad_align=DEFAULT_STRING_NULL_PAD_ALIGN,
         address_printing=DEFAULT_ADDRESS_PRINT_MODE,
         max_data_bytes_per_line=DEFAULT_MAX_DATA_BYTES_PER_LINE,
-        suppress_newline_in_string=DEFAULT_SUPPRESS_NEWLINE_IN_STRING,
+        suppress_newline_tab_in_string=DEFAULT_SUPPRESS_NEWLINE_IN_STRING,
         ):
     prioritize_mod_4_string_w_4_null_over_nop = \
         string_null_pad_align==V1_STRING_PAD_ALIGN
 
     string_formatter = (
-        format_string_content_suppress_newline
-        if suppress_newline_in_string else format_not_at_all
+        format_string_content_suppress_newline_tab
+        if suppress_newline_tab_in_string else format_not_at_all
         )
 
     builtin_definitions = definitions_file==None
@@ -1367,7 +1370,7 @@ if __name__ == "__main__":
         )
 
     argparser.add_argument(
-        "--suppress-newline-in-string",
+        "--suppress-newline-tab-in-string",
         default=DEFAULT_SUPPRESS_NEWLINE_IN_STRING, action="store_true",
         help="For the Knight.py cherrypy debugger, don't break up newlines"
         )
@@ -1390,6 +1393,6 @@ if __name__ == "__main__":
         string_null_pad_align=args.string_null_pad_align,
         address_printing=args.address_mode,
         max_data_bytes_per_line=max_data_bytes_per_line,
-        suppress_newline_in_string=args.suppress_newline_in_string,
+        suppress_newline_tab_in_string=args.suppress_newline_tab_in_string,
     )
     args.inputfile.close()
