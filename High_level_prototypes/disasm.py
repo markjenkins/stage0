@@ -1323,6 +1323,16 @@ def dissassemble_knight_binary(
 def get_stage0_knight_defs_filename():
     return path_join(dirname(__file__), 'defs')
 
+def run_test_suite():
+    from io import BytesIO, StringIO
+    inputfilebytes = BytesIO()
+    inputfilebytes.write(b'00000000  ff ff                                             |..|\n00000002\n')
+    inputfilebytes.seek(0)
+    dissassemble_knight_binary(
+        inputfilebytes, StringIO(),
+    )
+    inputfilebytes.close()
+    
 if __name__ == "__main__":
     argparser = ArgumentParser()
 
@@ -1376,12 +1386,21 @@ if __name__ == "__main__":
         )
 
     argparser.add_argument(
+        "--run-test-suite",
+        default=False, action="store_true"
+    )
+
+    argparser.add_argument(
         "inputfile", help="file to disassemble",
         type=FileType("rb")
     )
 
     args = argparser.parse_args()
 
+    if args.run_test_suite:
+        test_suite_result = run_test_suite()
+        exit(test_suite_result)
+    
     # safety check on args.max_data_bytes_per_line to ensure the value
     # used is > 0
     max_data_bytes_per_line = max(1, args.max_data_bytes_per_line)
