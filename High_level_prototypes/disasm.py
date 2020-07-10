@@ -1035,12 +1035,20 @@ def replace_strings_in_hex_nyble_stream(
             # redundant as while loop has this covered
             if lookahead_buffer.hit_end():
                 break
-        # else num_printable > 0 and not pred_last
-        # and not lookahead_buffer.hit_end()
+        # else (num_printable > 0 and pred_last is False
+        #       and not lookahead_buffer.hit_end() )
+        #       or
+        #      (pred_last is None and lookahead_buffer.hit_end() )
         else:
             # we were stopped by the predicate, so we were not stopped
             # by exhausing the iterator
-            assert not lookahead_buffer.hit_end()
+            #
+            # or we were stopped by exhausting the iterator
+            # (in which case we'll process what we found and go back to the
+            #  top of the loop)
+            assert ( (pred_last is False and not lookahead_buffer.hit_end())
+                     or
+                     (pred_last is None and lookahead_buffer.hit_end()) )
 
             chars_and_first_null = lookahead_buffer.clear(as_tuple=True)
             chars_no_null = chars_and_first_null[:-1]
