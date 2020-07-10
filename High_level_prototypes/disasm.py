@@ -862,7 +862,7 @@ def enhance_annotations_to_include_sub_annotations_from_pair(
              (sub_annotations,) +
              ny_annotations[NY_ANNO_IS_PAIR+1:]
     ) # end tuple addition expression
-                        
+
 def make_nyble_pair(annotated_nyble1, annotated_nyble2):
     return (
         (annotated_nyble1[0], annotated_nyble2[0]),
@@ -883,7 +883,7 @@ def make_nyble_data_pair_stream(nyble_data_stream):
     while len(lookahead_buffer)>0 or not lookahead_buffer.hit_end():
         if lookahead_buffer.grow_buffer(2): # 2 nybles per byte
             annotated_nybles = lookahead_buffer.next_n(2,grow=False)
-            #( (nyble1, nyble1_annotations), 
+            #( (nyble1, nyble1_annotations),
             #  (nyble2, nyble2_annotations)  ) = annotated_nybles
             if all( annotated_nyble_is_data(an_ny)
                     for an_ny in annotated_nybles ):
@@ -919,7 +919,7 @@ def expand_nyble_pair_back_to_two_nybles(nyble_pair):
         annotations[0:NY_ANNO_IS_PAIR] +
         ( (), ) + # NY_ANNO_IS_PAIR
         annotations[NY_ANNO_IS_PAIR+1:]
-    )        
+    )
     return ( (nyble1, annotations1), (nyble2, annotations2) )
 
 def make_nyble_stream_from_pair_stream(nyble_pair_stream):
@@ -1340,7 +1340,7 @@ def run_test_suite():
         inputfilebytes, StringIO(),
     )
     inputfilebytes.close()
-    
+
 if __name__ == "__main__":
     argparser = ArgumentParser()
 
@@ -1408,7 +1408,7 @@ if __name__ == "__main__":
     if args.run_test_suite:
         test_suite_result = run_test_suite()
         exit(test_suite_result)
-    
+
     # safety check on args.max_data_bytes_per_line to ensure the value
     # used is > 0
     max_data_bytes_per_line = max(1, args.max_data_bytes_per_line)
